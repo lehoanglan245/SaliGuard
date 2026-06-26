@@ -1,0 +1,15 @@
+# Node.js
+node_modules/
+.env
+
+# SvelteKit
+.svelte-kit/
+build/
+
+# PlatformIO (Firmware)
+.pio/
+
+# Python (AI Engine)
+__pycache__/
+.venv/
+*.pkl
