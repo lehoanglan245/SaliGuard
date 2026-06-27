@@ -2,48 +2,48 @@
 **Project Context & Instructions for AI Assistant**
 
 ## 1. Project Overview
-SaliGuard là hệ thống IoT cảnh báo sớm xâm nhập mặn (24h - 72h) dành cho nông dân khu vực ven biển (Hải Phòng, Việt Nam).
-Hệ thống sử dụng cảm biến thực địa để thu thập dữ liệu thủy văn, xử lý qua mô hình AI trên server để đưa ra dự báo, và hiển thị cảnh báo lên Dashboard web.
+SaliGuard is an IoT-based early warning system for saltwater intrusion (24h - 72h ahead), aimed at farmers in coastal areas (Hai Phong, Vietnam).
+The system uses field sensors to collect hydrological data, processes it through an AI model on the server to produce forecasts, and displays warnings on a web Dashboard.
 
 ## 2. Monorepo Architecture & Tech Stack
-Dự án được tổ chức theo dạng Monorepo, bao gồm 4 khối chính:
+The project is organized as a Monorepo, consisting of 4 main blocks:
 
-- **/firmware**: Code nạp cho thiết bị biên.
-  - *Tech:* ESP32, C/C++, PlatformIO, thư viện PubSubClient (MQTT), ArduinoJson.
-  - *Role:* Đọc cảm biến (EC, Nhiệt độ, Mực nước), gửi JSON qua mạng 4G (MQTT over TLS).
-  
-- **/backend**: Dịch vụ tiếp nhận và quản lý luồng dữ liệu (Ingestion Service).
-  - *Tech:* Node.js, TypeScript, Express.js, thư viện `mqtt` và `pg`.
-  - *Role:* Subscribe MQTT Broker, lưu dữ liệu vào Database, gọi AI Engine để lấy dự báo, và cung cấp REST API cho Dashboard.
+- **/firmware**: Code flashed onto the edge device.
+  - *Tech:* ESP32, C/C++, PlatformIO, PubSubClient library (MQTT), ArduinoJson.
+  - *Role:* Read sensors (EC, Temperature, Water level), send JSON over the 4G network (MQTT over TLS).
 
-- **/ai_engine**: Dịch vụ tính toán và dự báo.
+- **/backend**: Data ingestion and flow management service (Ingestion Service).
+  - *Tech:* Node.js, TypeScript, Express.js, the `mqtt` and `pg` libraries.
+  - *Role:* Subscribe to the MQTT Broker, store data in the Database, call the AI Engine to get forecasts, and provide a REST API for the Dashboard.
+
+- **/ai_engine**: Computation and forecasting service.
   - *Tech:* Python 3, FastAPI, XGBoost, Pandas, Numpy.
-  - *Role:* Chạy mô hình XGBoost đã được huấn luyện, nhận input từ Backend qua HTTP POST và trả về dự báo độ mặn cho 24h, 48h tới.
+  - *Role:* Run the trained XGBoost model, receive input from the Backend via HTTP POST and return salinity forecasts for the next 24h and 48h.
 
-- **/dashboard**: Giao diện người dùng web.
-  - *Tech:* SvelteKit (Svelte 5), TypeScript, TailwindCSS, uPlot (biểu đồ).
-  - *Role:* Gọi REST API từ Backend, hiển thị bản đồ, biểu đồ lịch sử và thẻ cảnh báo (Xanh/Vàng/Đỏ). Deploy trên Cloudflare Pages.
+- **/dashboard**: Web user interface.
+  - *Tech:* SvelteKit (Svelte 5), TypeScript, TailwindCSS, uPlot (charts).
+  - *Role:* Call the REST API from the Backend, display the map, historical charts and alert cards (Green/Yellow/Red). Deployed on Cloudflare Pages.
 
-- **Database / Infrastructure:** - PostgreSQL + TimescaleDB (chỉ dùng 1 bảng `telemetry` dạng hypertable).
+- **Database / Infrastructure:** - PostgreSQL + TimescaleDB (uses only a single `telemetry` table as a hypertable).
   - Mosquitto MQTT Broker.
 
-## 3. Data Flow (Luồng dữ liệu)
-1. `ESP32` publish chuỗi JSON lên topic `waterqa/<station_id>/telemetry`.
-2. `Backend (Node.js)` nhận message, insert thẳng vào bảng `telemetry` trong PostgreSQL.
-3. `Backend (Node.js)` gửi request POST mang theo {temp, ec, level} sang `AI Engine (Python/FastAPI)` ở cổng 8000.
-4. `AI Engine` dùng mô hình XGBoost tính toán và trả về JSON `{"forecast_24h": value}`.
-5. `Backend` nhận kết quả, nếu > 4g/L (mức đỏ) thì kích hoạt cảnh báo, đồng thời cập nhật dữ liệu để phục vụ API.
-6. `Dashboard (Svelte 5)` gọi REST API để render UI.
+## 3. Data Flow
+1. `ESP32` publishes a JSON string to the topic `waterqa/<station_id>/telemetry`.
+2. `Backend (Node.js)` receives the message and inserts it directly into the `telemetry` table in PostgreSQL.
+3. `Backend (Node.js)` sends a POST request carrying {temp, ec, level} to the `AI Engine (Python/FastAPI)` on port 8000.
+4. `AI Engine` uses the XGBoost model to compute and returns JSON `{"forecast_24h": value}`.
+5. `Backend` receives the result; if it exceeds 4 g/L (red level) it triggers an alert, and also updates the data to serve the API.
+6. `Dashboard (Svelte 5)` calls the REST API to render the UI.
 
 ## 4. Coding Conventions & AI Guidelines
-Khi hỗ trợ viết code cho dự án này, AI cần tuân thủ tuyệt đối các quy tắc sau:
+When helping write code for this project, the AI must strictly follow these rules:
 
-- **TypeScript / JavaScript:** Sử dụng ES6+ syntax, ưu tiên `async/await` thay vì `.then()`. Luôn khai báo type/interface rõ ràng cho các payload dữ liệu.
-- **Svelte 5:** BẮT BUỘC sử dụng cú pháp Runes (`$state`, `$derived`, `$effect`) cho hệ thống reactivity, không dùng cú pháp Svelte 4 cũ. Khuyến khích chia nhỏ thành các Component độc lập.
-- **Python:** Viết code clean, có type hinting đầy đủ (vd: `def predict(data: dict) -> dict:`).
-- **Security:** Không bao giờ hardcode mật khẩu, token hay URL. Bắt buộc dùng `process.env` (Node.js) hoặc `os.getenv` (Python) để đọc cấu hình từ file `.env`.
-- **Formatting:** Luôn format trả lời rõ ràng, nếu tạo file mới phải chỉ định chính xác đường dẫn tương đối (vd: `backend/src/db.ts`).
-- **Context Awareness:** Tự động nhận diện file đang làm việc thuộc khối nào (firmware, backend, ai, hay dashboard) để dùng đúng ngôn ngữ và thư viện tương ứng.
+- **TypeScript / JavaScript:** Use ES6+ syntax, prefer `async/await` over `.then()`. Always declare clear types/interfaces for data payloads.
+- **Svelte 5:** You MUST use Runes syntax (`$state`, `$derived`, `$effect`) for the reactivity system; do not use the old Svelte 4 syntax. Splitting into independent Components is encouraged.
+- **Python:** Write clean code with full type hinting (e.g. `def predict(data: dict) -> dict:`).
+- **Security:** Never hardcode passwords, tokens, or URLs. You must use `process.env` (Node.js) or `os.getenv` (Python) to read configuration from the `.env` file.
+- **Formatting:** Always format responses clearly; when creating a new file you must specify the exact relative path (e.g. `backend/src/db.ts`).
+- **Context Awareness:** Automatically identify which block the file you are working on belongs to (firmware, backend, ai, or dashboard) in order to use the correct language and libraries.
 
 Here are several guidelines you must always follow:
 
@@ -62,6 +62,74 @@ Here are several guidelines you must always follow:
 - You must write Drizzle code following instructions provided at https://orm.drizzle.team/llms.txt.
   - Table names and column names must use the camelCase convention in TypeScript and snake_case in Postgres.
   - Use the Postgres schema `cncSchema` when writing a Drizzle schema.
+
+## 5. Frontend (Dashboard) — Details for the `/dashboard` block
+
+> This section is supplementary and specific to the `/dashboard` block. The Svelte 5 rules,
+> naming, `clsx`, Zod, `form`/`load`/`prerender` functions, `pnpm lint`, Conventional Commits and
+> MCP tools are already covered in **Section 4** and the "Available MCP Tools" part below — they are
+> NOT repeated here; this section only records the dashboard-specific details.
+
+### 5.1. Architectural principles
+- The Dashboard does **NOT** connect directly to the Database. It only calls the Backend's **REST API** over HTTPS.
+- Centralize **all API calls into a single file** `src/lib/api.ts` to make it easy to change the address and handle errors in one place.
+
+### 5.2. Data contract with the Backend (MUST match exactly)
+Field names on the frontend must match `backend/src/api.ts` exactly:
+```ts
+// GET /api/stations
+type Station = { station_id: string; name: string; lat: number; lon: number };
+
+// GET /api/latest?station=ID
+type LatestReading = {
+  station_id: string;
+  temp: number;          // °C
+  ec: number;            // salinity (g/L)
+  level: number;         // water level (m)
+  forecast_24h: number;  // 24h forecast (g/L)
+  alert: "green" | "yellow" | "red";  // computed by the backend → the frontend REUSES it, does not recompute
+  updated_at: string;    // ISO timestamp
+};
+```
+- `alert` is computed by the backend using the 1 & 4 g/L thresholds. The API currently returns **mock data** — build the UI first.
+- Error handling: `400` (missing `station`), `404` (station not found).
+- Endpoints **to come**: `GET /api/history?station=ID&from=&to=` (charts), `GET /api/alerts` (alert history).
+
+### 5.3. Configuration & security
+- The backend address is read from the env var `PUBLIC_API_URL` (do not hardcode — see **Security, Section 4**).
+- **CORS:** the dashboard (Cloudflare) is on a different domain from the API (VPS) → the backend must allow the dashboard's domain.
+- Both sides use HTTPS.
+
+### 5.4. Suggested folder structure
+```
+dashboard/src/
+├── routes/
+│   ├── +page.svelte / +page.server.ts   # Overview: grid of station cards (load /api/stations + /api/latest)
+│   ├── station/[id]/+page.svelte        # Single station detail (chart)
+│   └── alerts/+page.svelte              # Alert history
+└── lib/
+    ├── api.ts            # ALL REST API calls go here
+    ├── types.ts          # Station, LatestReading...
+    ├── chart.svelte      # uPlot chart component
+    └── station-card.svelte
+```
+
+### 5.5. Display & charts
+- **Real-time = polling** (re-call the API every few minutes); a WebSocket is NOT needed. Clean up
+  `setInterval` when leaving the page; do not update `$state` incorrectly inside `$effect` — use `$derived`.
+- **uPlot**: wrap it in a `chart.svelte` component, receive data via `$props()`, **destroy** the chart on
+  unmount, and handle resize.
+
+### 5.6. Alert colors (mapped from the `alert` field)
+| `alert` | Salinity | Tailwind class | Meaning |
+|---------|----------|----------------|---------|
+| `green`  | < 1 g/L  | `bg-green-500`  | Safe — normal irrigation |
+| `yellow` | 1–4 g/L  | `bg-yellow-500` | Caution — prepare to close gates |
+| `red`    | > 4 g/L  | `bg-red-600`    | Danger — close gates immediately |
+
+### 5.7. Cloudflare Pages deployment
+- Use `adapter-cloudflare`; dynamic pages must set `export const prerender = false` (see **Section 4**).
+- Build with `npm run build`; declare the `PUBLIC_API_URL` env var on Cloudflare. Pushing code → auto build & deploy.
 
 
 ## Available MCP Tools:
