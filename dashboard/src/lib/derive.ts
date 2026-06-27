@@ -18,7 +18,7 @@ export function summarize(views: StationView[]): DashboardSummary {
 		.map((v) => ({
 			name: v.station.name,
 			value: v.reading!.forecast_24h,
-			alert: v.reading!.alert,
+			alert: v.reading!.alert
 		}))
 		.sort((a, b) => b.value - a.value)
 		.slice(0, 4);
@@ -29,6 +29,6 @@ export function summarize(views: StationView[]): DashboardSummary {
 		atRiskCount,
 		safePct: pct(greenCount),
 		healthPct: pct(greenCount),
-		topStations,
+		topStations
 	};
 }
