@@ -1,0 +1,178 @@
+<script lang="ts">
+	type ChatMessage = { id: number; role: 'user' | 'bot'; text: string };
+
+	const WELCOME: ChatMessage = {
+		id: 0,
+		role: 'bot',
+		text: 'Xin chào! Tôi là trợ lý SaliGuard. Hỏi tôi về độ mặn, cảnh báo hay trạm đo.'
+	};
+
+	let open = $state(false);
+	let draft = $state('');
+	let messages = $state<ChatMessage[]>([WELCOME]);
+	let nextId = $state(1);
+	let inputEl = $state<HTMLInputElement | null>(null);
+	let listEl = $state<HTMLDivElement | null>(null);
+
+	const canSend = $derived(draft.trim().length > 0);
+
+	function toggle() {
+		open = !open;
+	}
+
+	function scrollToEnd() {
+		// Defer until the DOM has the new message rendered.
+		queueMicrotask(() => listEl?.scrollTo({ top: listEl.scrollHeight }));
+	}
+
+	function send() {
+		const text = draft.trim();
+		if (!text) return;
+
+		messages = [...messages, { id: nextId++, role: 'user', text }];
+		draft = '';
+		scrollToEnd();
+
+		// TODO: replace with sendChatMessage() from $lib/api once the backend
+		// /api/chat endpoint is live. Echo a placeholder for now.
+		messages = [
+			...messages,
+			{ id: nextId++, role: 'bot', text: 'Chatbot chưa kết nối API — sẽ trả lời sau.' }
+		];
+		scrollToEnd();
+	}
+
+	function onKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter' && !event.shiftKey) {
+			event.preventDefault();
+			send();
+		} else if (event.key === 'Escape') {
+			open = false;
+		}
+	}
+</script>
+
+<div class="fixed right-6 bottom-6 z-50 flex flex-col items-end gap-3">
+	{#if open}
+		<section
+			class="flex h-[36.4rem] w-[28.6rem] max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-card shadow-lg"
+			aria-label="Trợ lý SaliGuard"
+		>
+			<header class="flex items-center gap-3 border-b border-gray-100 px-4 py-3">
+				<span class="h-8 w-8 shrink-0 rounded-full bg-accent" aria-hidden="true"></span>
+				<div class="min-w-0">
+					<p class="text-sm font-semibold">Trợ lý SaliGuard</p>
+					<p class="text-xs text-gray-500">Hỏi đáp về độ mặn</p>
+				</div>
+				<button
+					type="button"
+					onclick={toggle}
+					aria-label="Đóng cửa sổ chat"
+					class="ml-auto rounded-lg p-1 text-gray-400 hover:bg-gray-50 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-accent"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						class="h-5 w-5"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						aria-hidden="true"
+					>
+						<path d="m6 6 12 12M18 6 6 18" stroke-linecap="round" />
+					</svg>
+				</button>
+			</header>
+
+			<div
+				bind:this={listEl}
+				class="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
+				aria-live="polite"
+			>
+				{#each messages as message (message.id)}
+					<div class={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+						<p
+							class={message.role === 'user'
+								? 'max-w-[80%] rounded-2xl rounded-br-sm bg-accent px-3 py-2 text-sm text-white'
+								: 'max-w-[80%] rounded-2xl rounded-bl-sm bg-cream px-3 py-2 text-sm text-gray-700'}
+						>
+							{message.text}
+						</p>
+					</div>
+				{/each}
+			</div>
+
+			<form
+				class="flex items-center gap-2 border-t border-gray-100 px-3 py-3"
+				onsubmit={(event) => {
+					event.preventDefault();
+					send();
+				}}
+			>
+				<label class="sr-only" for="chat-input">Nhập tin nhắn</label>
+				<input
+					bind:this={inputEl}
+					bind:value={draft}
+					onkeydown={onKeydown}
+					id="chat-input"
+					type="text"
+					autocomplete="off"
+					placeholder="Nhập câu hỏi…"
+					class="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent"
+				/>
+				<button
+					type="submit"
+					disabled={!canSend}
+					aria-label="Gửi tin nhắn"
+					class="rounded-lg bg-accent p-2 text-white hover:bg-amber-600 focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-40"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						class="h-5 w-5"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						aria-hidden="true"
+					>
+						<path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</button>
+			</form>
+		</section>
+	{/if}
+
+	<button
+		type="button"
+		onclick={toggle}
+		aria-expanded={open}
+		aria-label={open ? 'Đóng trợ lý' : 'Mở trợ lý SaliGuard'}
+		class="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:bg-amber-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none"
+	>
+		{#if open}
+			<svg
+				viewBox="0 0 24 24"
+				class="h-6 w-6"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				aria-hidden="true"
+			>
+				<path d="m6 6 12 12M18 6 6 18" stroke-linecap="round" />
+			</svg>
+		{:else}
+			<svg
+				viewBox="0 0 24 24"
+				class="h-6 w-6"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				aria-hidden="true"
+			>
+				<path
+					d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+			</svg>
+		{/if}
+	</button>
+</div>
