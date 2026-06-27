@@ -5,12 +5,28 @@ import type { Station, LatestReading } from './types';
 const stations: Station[] = [
 	{ station_id: 'ST001', name: 'Văn Úc', lat: 20.6, lon: 106.5 },
 	{ station_id: 'ST002', name: 'Bạch Đằng', lat: 20.7, lon: 106.7 },
-	{ station_id: 'ST003', name: 'Lạch Tray', lat: 20.8, lon: 106.6 },
+	{ station_id: 'ST003', name: 'Lạch Tray', lat: 20.8, lon: 106.6 }
 ];
 const readings: LatestReading[] = [
-	{ station_id: 'ST001', temp: 26, ec: 0.5, level: 1, forecast_24h: 0.5, alert: 'green', updated_at: 'x' },
-	{ station_id: 'ST002', temp: 27, ec: 2, level: 1, forecast_24h: 2.5, alert: 'yellow', updated_at: 'x' },
-	{ station_id: 'ST003', temp: 28, ec: 5, level: 1, forecast_24h: 5, alert: 'red', updated_at: 'x' },
+	{
+		station_id: 'ST001',
+		temp: 26,
+		ec: 0.5,
+		level: 1,
+		forecast_24h: 0.5,
+		alert: 'green',
+		updated_at: 'x'
+	},
+	{
+		station_id: 'ST002',
+		temp: 27,
+		ec: 2,
+		level: 1,
+		forecast_24h: 2.5,
+		alert: 'yellow',
+		updated_at: 'x'
+	},
+	{ station_id: 'ST003', temp: 28, ec: 5, level: 1, forecast_24h: 5, alert: 'red', updated_at: 'x' }
 ];
 
 describe('toStationViews', () => {
