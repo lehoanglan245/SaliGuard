@@ -22,6 +22,33 @@ export interface StationView {
 	reading: LatestReading | null;
 }
 
+export type TrendDirection = 'up' | 'down' | 'flat';
+
+export interface StationDetail {
+	station_id: string;
+	name: string;
+	region: string;
+	lat: number;
+	lon: number;
+	ec: number; // g/L
+	temp: number; // °C
+	level: number; // m
+	forecast_24h: number; // g/L
+	forecast_48h: number; // g/L
+	alert: AlertLevel;
+	battery: number; // %
+	signal: number; // signal bars 0–4
+	trend: TrendDirection; // EC change vs previous reading
+	updated_at: string; // ISO timestamp
+}
+
+export interface HistoryPoint {
+	ts: string; // ISO timestamp
+	ec: number;
+	temp: number;
+	level: number;
+}
+
 export interface TopStation {
 	name: string;
 	value: number;
