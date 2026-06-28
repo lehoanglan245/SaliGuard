@@ -7,7 +7,6 @@
 	import AppShell from '$lib/components/app-shell.svelte';
 	import StationFilterBar from '$lib/components/stations/station-filter-bar.svelte';
 	import StationGrid from '$lib/components/stations/station-grid.svelte';
-	import StationModal from '$lib/components/stations/station-modal.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -15,7 +14,6 @@
 	let polled = $state<StationDetail[] | null>(null);
 	let filterRegion = $state<string | null>(null);
 	let filterQuery = $state('');
-	let selectedStation = $state<StationDetail | null>(null);
 
 	const stations = $derived(polled ?? data.stations);
 
@@ -63,7 +61,5 @@
 		<StationFilterBar regions={HAI_PHONG_REGIONS} {onFilter} />
 	</div>
 
-	<StationGrid stations={filtered} onSelectStation={(s) => (selectedStation = s)} {loading} />
-
-	<StationModal station={selectedStation} onClose={() => (selectedStation = null)} />
+	<StationGrid stations={filtered} {loading} />
 </AppShell>

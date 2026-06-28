@@ -6,10 +6,9 @@
 
 	interface Props {
 		stations: StationDetail[];
-		onSelectStation: (station: StationDetail) => void;
 		loading?: boolean;
 	}
-	let { stations, onSelectStation, loading = false }: Props = $props();
+	let { stations, loading = false }: Props = $props();
 
 	const SKELETONS = [0, 1, 2, 3, 4, 5];
 </script>
@@ -34,7 +33,7 @@
 {:else}
 	<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
 		{#each stations as station (station.station_id)}
-			<StationCard {station} onClick={() => onSelectStation(station)} />
+			<StationCard {station} />
 		{/each}
 	</div>
 {/if}

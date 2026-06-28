@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { clsx } from '$lib/clsx';
 	import { CARD_INTERACTIVE } from '$lib/ui';
 	import type { StationDetail } from '$lib/types';
@@ -6,9 +7,8 @@
 
 	interface Props {
 		station: StationDetail;
-		onClick: () => void;
 	}
-	let { station, onClick }: Props = $props();
+	let { station }: Props = $props();
 
 	const TREND_GLYPH = { up: '↑', down: '↓', flat: '→' } as const;
 	const TREND_TONE = {
@@ -19,12 +19,12 @@
 
 	const cardClass = clsx(
 		CARD_INTERACTIVE,
-		'group w-full overflow-hidden text-left',
+		'group block w-full overflow-hidden text-left',
 		'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
 	);
 </script>
 
-<button type="button" onclick={onClick} class={cardClass}>
+<a href={resolve(`/stations/${station.station_id}`)} class={cardClass}>
 	<div class="flex flex-col gap-4 p-5">
 		<div class="flex items-start justify-between gap-3">
 			<div class="min-w-0">
@@ -74,4 +74,4 @@
 			</span>
 		</div>
 	</div>
-</button>
+</a>
