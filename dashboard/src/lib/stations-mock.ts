@@ -1,4 +1,4 @@
-import type { StationDetail, HistoryPoint, AlertLevel } from './types';
+import type { StationDetail, HistoryPoint, AlertLevel, AlertEvent } from './types';
 
 export const HAI_PHONG_REGIONS = ['Cát Hải', 'Tiên Lãng', 'Vĩnh Bảo', 'Kiến Thụy', 'Đồ Sơn'];
 
@@ -106,6 +106,48 @@ function seed(str: string): number {
 	let h = 0;
 	for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
 	return h;
+}
+
+// Deterministic alert history derived from the station roster. Red stations
+// produce danger events, caution stations yellow ones, and "safe" stations a
+// single past spike — so the history list always shows realistic variety.
+export function mockAlertHistory(): AlertEvent[] {
+	const out: AlertEvent[] = [];
+
+	for (const st of MOCK_STATION_DETAILS) {
+		const s = seed(st.station_id);
+		const plan: AlertEvent['level'][] =
+			st.alert === 'red'
+				? ['red', 'red', 'yellow']
+				: st.alert === 'yellow'
+					? ['yellow', 'yellow']
+					: ['yellow']; // a green station that crossed caution earlier
+
+		plan.forEach((level, i) => {
+			const hoursAgo = 3 + ((s >> (i * 3)) & 31) + i * 22; // spread across ~a week
+			const ts = new Date(Date.now() - hoursAgo * 3_600_000).toISOString();
+			const frac = ((s >> i) & 7) / 7;
+			const ec =
+				level === 'red'
+					? Number((4.1 + frac * 1.4).toFixed(1))
+					: Number((1.1 + frac * 2.6).toFixed(1));
+			out.push({
+				id: `${st.station_id}-${i}`,
+				station_id: st.station_id,
+				station: st.name,
+				region: st.region,
+				level,
+				ec,
+				message:
+					level === 'red'
+						? 'EC exceeded 4 g/L — close the gates immediately'
+						: 'EC crossed the 1 g/L caution threshold',
+				ts
+			});
+		});
+	}
+
+	return out.sort((a, b) => +new Date(b.ts) - +new Date(a.ts));
 }
 
 export function mockHistory(stationId: string, from: string, to: string): HistoryPoint[] {
