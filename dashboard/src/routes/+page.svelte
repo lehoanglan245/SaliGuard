@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { clsx } from '$lib/clsx';
-	import { clearSession } from '$lib/auth';
+	import { CARD_INTERACTIVE } from '$lib/ui';
+	import AppShell from '$lib/components/app-shell.svelte';
 
 	type Alert = 'green' | 'yellow' | 'red';
 	type Row = { name: string; ec: number; forecast: number; level: number; alert: Alert };
@@ -57,13 +57,13 @@
 	);
 
 	const DOT: Record<Alert, string> = {
-		green: 'bg-emerald-500',
-		yellow: 'bg-amber-500',
-		red: 'bg-red-500'
+		green: 'bg-green-500',
+		yellow: 'bg-yellow-500',
+		red: 'bg-red-600'
 	};
 	const SOFT: Record<Alert, string> = {
-		green: 'bg-emerald-50 text-emerald-700',
-		yellow: 'bg-amber-50 text-amber-700',
+		green: 'bg-green-50 text-green-700',
+		yellow: 'bg-yellow-50 text-yellow-700',
 		red: 'bg-red-50 text-red-700'
 	};
 
@@ -98,298 +98,208 @@
 	const SENSORS_ONLINE = 96;
 	const ringCirc = 2 * Math.PI * 52;
 	const ringFill = (SENSORS_ONLINE / 100) * ringCirc;
-
-	const card = clsx(
-		'rounded-3xl border border-white/60 bg-white/65 backdrop-blur-xl',
-		'shadow-[0_1px_2px_rgba(31,25,16,0.04),0_24px_48px_-28px_rgba(31,25,16,0.28)]',
-		'transition duration-300 hover:-translate-y-0.5',
-		'hover:shadow-[0_1px_2px_rgba(31,25,16,0.05),0_32px_60px_-30px_rgba(31,25,16,0.34)]'
-	);
-	const navLink = 'rounded-full px-3.5 py-1.5 text-sm text-gray-500 transition hover:text-gray-900';
-
-	function logout() {
-		clearSession();
-		goto(resolve('/login'));
-	}
 </script>
 
 <svelte:head><title>Overview — SaliGuard</title></svelte:head>
 
-<div class="relative min-h-screen overflow-hidden bg-cream font-[Inter] text-gray-900">
-	<!-- soft ambient background so the glass has something to blur -->
-	<div class="pointer-events-none absolute inset-0" aria-hidden="true">
-		<div
-			class="absolute -top-32 -right-24 h-[34rem] w-[34rem] rounded-full opacity-60 blur-3xl"
-			style="background: radial-gradient(circle, #fde9c8 0%, transparent 70%);"
-		></div>
-		<div
-			class="absolute top-1/3 -left-40 h-[30rem] w-[30rem] rounded-full opacity-50 blur-3xl"
-			style="background: radial-gradient(circle, #d9efe9 0%, transparent 70%);"
-		></div>
+<AppShell>
+	{#if data.error}
+		<p class="mb-6 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+			Showing sample data — live API unavailable ({data.error}).
+		</p>
+	{/if}
+
+	<!-- hero greeting -->
+	<div class="reveal mb-10">
+		<p class="text-sm font-medium tracking-wide text-gray-400">
+			Sunday · June 28, 2026 · Hải Phòng
+		</p>
+		<h1
+			class="mt-1 text-5xl leading-[1.05] font-semibold tracking-tight"
+			style="font-family: 'Lora', serif;"
+		>
+			Salinity overview
+		</h1>
+		<p class="mt-3 max-w-xl text-[15px] leading-relaxed text-gray-500">
+			{total} field stations along the Hải Phòng estuaries. Forecasts run 24–72 hours ahead, flagged against
+			the 1 &amp; 4 g/L thresholds.
+		</p>
 	</div>
 
-	<!-- glass top bar -->
-	<header class="sticky top-0 z-20 border-b border-white/40 bg-white/55 backdrop-blur-xl">
-		<div class="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3.5">
-			<div class="flex items-center gap-2">
-				<span class="h-7 w-7 rounded-full bg-accent" aria-hidden="true"></span>
-				<span class="text-[15px] font-semibold tracking-tight">SaliGuard</span>
+	<!-- KPI row -->
+	<section class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4" aria-label="Key metrics">
+		{#each [{ label: 'Safe stations', value: `${greenCount} / ${total}`, sub: `${safePct}% of network`, tone: 'text-green-600' }, { label: 'At risk', value: String(atRisk), sub: 'Yellow or red', tone: 'text-amber-600' }, { label: 'Peak salinity', value: peak.toFixed(1), unit: 'g/L', sub: '24h forecast', tone: 'text-red-600' }, { label: 'Avg water level', value: avgLevel.toFixed(1), unit: 'm', sub: 'Across network', tone: 'text-gray-500' }] as kpi, i (kpi.label)}
+			<div class={clsx(CARD_INTERACTIVE, 'reveal p-5')} style="animation-delay: {80 + i * 60}ms">
+				<p class="text-[13px] font-medium text-gray-500">{kpi.label}</p>
+				<p class="mt-3 text-3xl font-semibold tracking-tight">
+					{kpi.value}{#if kpi.unit}<span class="ml-1 text-lg font-medium text-gray-400"
+							>{kpi.unit}</span
+						>{/if}
+				</p>
+				<p class={clsx('mt-1 text-xs font-medium', kpi.tone)}>{kpi.sub}</p>
 			</div>
-			<nav class="ml-4 hidden items-center gap-1 md:flex" aria-label="Primary">
-				<a
-					href="#overview"
-					aria-current="page"
-					class="rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-gray-900 shadow-sm"
-					>Overview</a
-				>
-				<a href="#stations" class={navLink}>Stations</a>
-				<a href="#map" class={navLink}>Map</a>
-				<a href="#alerts" class={navLink}>Alerts</a>
-				<a href="#reports" class={navLink}>Reports</a>
-			</nav>
-			<div class="ml-auto flex items-center gap-3">
-				<div
-					class="hidden items-center gap-2 rounded-full border border-gray-200/70 bg-white/70 px-3.5 py-1.5 sm:flex"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						class="h-4 w-4 text-gray-400"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						aria-hidden="true"
-					>
-						<circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" stroke-linecap="round" />
-					</svg>
-					<span class="text-sm text-gray-400">Search stations…</span>
+		{/each}
+	</section>
+
+	<!-- chart + health -->
+	<section class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+		<div class={clsx(CARD_INTERACTIVE, 'reveal p-6 lg:col-span-2')} style="animation-delay: 320ms">
+			<div class="mb-4 flex items-end justify-between">
+				<div>
+					<h2 class="text-base font-semibold tracking-tight">Salinity trend</h2>
+					<p class="text-xs text-gray-400">Last 7 days · network average (g/L)</p>
 				</div>
-				<span
-					class="grid h-9 w-9 place-items-center rounded-full bg-accent/15 text-sm font-semibold text-accent"
-					>AT</span
+				<span class="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600"
+					>Peak 3.2</span
 				>
-				<button
-					type="button"
-					onclick={logout}
-					aria-label="Sign out"
-					class="grid h-9 w-9 place-items-center rounded-full text-gray-400 transition hover:bg-white/70 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-accent"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						class="h-4 w-4"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						aria-hidden="true"
-					>
-						<path
-							d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
-				</button>
+			</div>
+			<svg viewBox="0 0 {W} {H}" class="h-56 w-full" role="img" aria-label="Salinity trend chart">
+				<defs>
+					<linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+						<stop offset="0%" stop-color="#f59e0b" stop-opacity="0.28" />
+						<stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
+					</linearGradient>
+				</defs>
+				{#each [0.25, 0.5, 0.75] as g (g)}
+					<line
+						x1={PAD}
+						x2={W - PAD}
+						y1={PAD + g * (H - 2 * PAD)}
+						y2={PAD + g * (H - 2 * PAD)}
+						stroke="#1f1910"
+						stroke-opacity="0.06"
+					/>
+				{/each}
+				<path d={areaPath} fill="url(#fill)" />
+				<path
+					d={linePath}
+					fill="none"
+					stroke="#f59e0b"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+				{#each pts as p, i (i)}
+					<circle cx={p[0]} cy={p[1]} r="3" fill="#fff" stroke="#f59e0b" stroke-width="2" />
+				{/each}
+			</svg>
+			<div class="mt-2 flex justify-between px-1 text-[11px] text-gray-400">
+				{#each DAYS as d (d)}<span>{d}</span>{/each}
 			</div>
 		</div>
-	</header>
 
-	<main class="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-20">
-		{#if data.error}
-			<p class="mb-6 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
-				Showing sample data — live API unavailable ({data.error}).
-			</p>
-		{/if}
-
-		<!-- hero greeting -->
-		<div class="reveal mb-10">
-			<p class="text-sm font-medium tracking-wide text-gray-400">
-				Sunday · June 28, 2026 · Hải Phòng
-			</p>
-			<h1
-				class="mt-1 text-5xl leading-[1.05] font-semibold tracking-tight"
-				style="font-family: 'Lora', serif;"
-			>
-				Salinity overview
-			</h1>
-			<p class="mt-3 max-w-xl text-[15px] leading-relaxed text-gray-500">
-				{total} field stations along the Hải Phòng estuaries. Forecasts run 24–72 hours ahead, flagged
-				against the 1 &amp; 4 g/L thresholds.
-			</p>
-		</div>
-
-		<!-- KPI row -->
-		<section class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4" aria-label="Key metrics">
-			{#each [{ label: 'Safe stations', value: `${greenCount} / ${total}`, sub: `${safePct}% of network`, tone: 'text-emerald-600' }, { label: 'At risk', value: String(atRisk), sub: 'Yellow or red', tone: 'text-amber-600' }, { label: 'Peak salinity', value: peak.toFixed(1), unit: 'g/L', sub: '24h forecast', tone: 'text-red-600' }, { label: 'Avg water level', value: avgLevel.toFixed(1), unit: 'm', sub: 'Across network', tone: 'text-gray-500' }] as kpi, i (kpi.label)}
-				<div class={clsx(card, 'reveal p-5')} style="animation-delay: {80 + i * 60}ms">
-					<p class="text-[13px] font-medium text-gray-500">{kpi.label}</p>
-					<p class="mt-3 text-3xl font-semibold tracking-tight">
-						{kpi.value}{#if kpi.unit}<span class="ml-1 text-lg font-medium text-gray-400"
-								>{kpi.unit}</span
-							>{/if}
-					</p>
-					<p class={clsx('mt-1 text-xs font-medium', kpi.tone)}>{kpi.sub}</p>
-				</div>
-			{/each}
-		</section>
-
-		<!-- chart + health -->
-		<section class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-			<div class={clsx(card, 'reveal p-6 lg:col-span-2')} style="animation-delay: 320ms">
-				<div class="mb-4 flex items-end justify-between">
-					<div>
-						<h2 class="text-base font-semibold tracking-tight">Salinity trend</h2>
-						<p class="text-xs text-gray-400">Last 7 days · network average (g/L)</p>
-					</div>
-					<span class="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600"
-						>Peak 3.2</span
-					>
-				</div>
-				<svg viewBox="0 0 {W} {H}" class="h-56 w-full" role="img" aria-label="Salinity trend chart">
-					<defs>
-						<linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-							<stop offset="0%" stop-color="#f59e0b" stop-opacity="0.28" />
-							<stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
-						</linearGradient>
-					</defs>
-					{#each [0.25, 0.5, 0.75] as g (g)}
-						<line
-							x1={PAD}
-							x2={W - PAD}
-							y1={PAD + g * (H - 2 * PAD)}
-							y2={PAD + g * (H - 2 * PAD)}
-							stroke="#1f1910"
-							stroke-opacity="0.06"
-						/>
-					{/each}
-					<path d={areaPath} fill="url(#fill)" />
-					<path
-						d={linePath}
+		<div
+			class={clsx(CARD_INTERACTIVE, 'reveal flex flex-col items-center justify-center p-6')}
+			style="animation-delay: 380ms"
+		>
+			<h2 class="self-start text-base font-semibold tracking-tight">Sensors online</h2>
+			<div class="relative my-4 grid place-items-center">
+				<svg viewBox="0 0 120 120" class="h-40 w-40 -rotate-90">
+					<circle
+						cx="60"
+						cy="60"
+						r="52"
+						fill="none"
+						stroke="#1f1910"
+						stroke-opacity="0.08"
+						stroke-width="10"
+					/>
+					<circle
+						cx="60"
+						cy="60"
+						r="52"
 						fill="none"
 						stroke="#f59e0b"
-						stroke-width="2.5"
+						stroke-width="10"
 						stroke-linecap="round"
-						stroke-linejoin="round"
+						stroke-dasharray="{ringFill} {ringCirc}"
 					/>
-					{#each pts as p, i (i)}
-						<circle cx={p[0]} cy={p[1]} r="3" fill="#fff" stroke="#f59e0b" stroke-width="2" />
-					{/each}
 				</svg>
-				<div class="mt-2 flex justify-between px-1 text-[11px] text-gray-400">
-					{#each DAYS as d (d)}<span>{d}</span>{/each}
+				<div class="absolute text-center">
+					<p class="text-3xl font-semibold tracking-tight">{SENSORS_ONLINE}%</p>
+					<p class="text-[11px] text-gray-400">24 / 25 devices</p>
 				</div>
 			</div>
+			<p class="text-center text-xs text-gray-500">One sensor at Đá Bạc offline since 03:12</p>
+		</div>
+	</section>
 
-			<div
-				class={clsx(card, 'reveal flex flex-col items-center justify-center p-6')}
-				style="animation-delay: 380ms"
+	<!-- stations table -->
+	<section
+		class={clsx(CARD_INTERACTIVE, 'reveal mb-6 overflow-hidden')}
+		style="animation-delay: 440ms"
+		aria-label="Stations"
+	>
+		<div class="flex items-center justify-between px-6 pt-5 pb-3">
+			<h2 class="text-base font-semibold tracking-tight">Stations</h2>
+			<a
+				href={resolve('/stations')}
+				class="text-sm font-medium text-accent transition hover:underline">View all</a
 			>
-				<h2 class="self-start text-base font-semibold tracking-tight">Sensors online</h2>
-				<div class="relative my-4 grid place-items-center">
-					<svg viewBox="0 0 120 120" class="h-40 w-40 -rotate-90">
-						<circle
-							cx="60"
-							cy="60"
-							r="52"
-							fill="none"
-							stroke="#1f1910"
-							stroke-opacity="0.08"
-							stroke-width="10"
-						/>
-						<circle
-							cx="60"
-							cy="60"
-							r="52"
-							fill="none"
-							stroke="#f59e0b"
-							stroke-width="10"
-							stroke-linecap="round"
-							stroke-dasharray="{ringFill} {ringCirc}"
-						/>
-					</svg>
-					<div class="absolute text-center">
-						<p class="text-3xl font-semibold tracking-tight">{SENSORS_ONLINE}%</p>
-						<p class="text-[11px] text-gray-400">24 / 25 devices</p>
-					</div>
+		</div>
+		<div class="divide-y divide-gray-100/80">
+			{#each stations as s (s.name)}
+				<div class="flex items-center gap-4 px-6 py-3.5 transition hover:bg-cream/60">
+					<span class={clsx('h-2.5 w-2.5 shrink-0 rounded-full', DOT[s.alert])} aria-hidden="true"
+					></span>
+					<span class="w-32 font-medium">{s.name}</span>
+					<span class="hidden flex-1 text-sm text-gray-500 sm:block"
+						>EC {s.ec} g/L · Level {s.level} m</span
+					>
+					<span class="ml-auto text-sm text-gray-400">Forecast</span>
+					<span class="w-14 text-right font-semibold tracking-tight">{s.forecast}</span>
+					<span
+						class={clsx(
+							'hidden w-20 rounded-full px-2.5 py-1 text-center text-xs font-medium capitalize md:block',
+							SOFT[s.alert]
+						)}
+					>
+						{s.alert}
+					</span>
 				</div>
-				<p class="text-center text-xs text-gray-500">One sensor at Đá Bạc offline since 03:12</p>
-			</div>
-		</section>
+			{/each}
+		</div>
+	</section>
 
-		<!-- stations table -->
-		<section
-			class={clsx(card, 'reveal mb-6 overflow-hidden')}
-			style="animation-delay: 440ms"
-			aria-label="Stations"
-		>
-			<div class="flex items-center justify-between px-6 pt-5 pb-3">
-				<h2 class="text-base font-semibold tracking-tight">Stations</h2>
-				<a href="#stations" class="text-sm font-medium text-accent transition hover:underline"
-					>View all</a
-				>
-			</div>
-			<div class="divide-y divide-gray-100/80">
-				{#each stations as s (s.name)}
-					<div class="flex items-center gap-4 px-6 py-3.5 transition hover:bg-white/50">
-						<span class={clsx('h-2.5 w-2.5 shrink-0 rounded-full', DOT[s.alert])} aria-hidden="true"
-						></span>
-						<span class="w-32 font-medium">{s.name}</span>
-						<span class="hidden flex-1 text-sm text-gray-500 sm:block"
-							>EC {s.ec} g/L · Level {s.level} m</span
+	<!-- alerts -->
+	<section
+		class={clsx(CARD_INTERACTIVE, 'reveal p-6')}
+		style="animation-delay: 500ms"
+		aria-label="Recent alerts"
+	>
+		<div class="mb-4 flex items-center justify-between">
+			<h2 class="text-base font-semibold tracking-tight">Recent alerts</h2>
+			<span class="text-xs text-gray-400">{alerts.length} need attention</span>
+		</div>
+		{#if alerts.length}
+			<ul class="flex flex-col gap-3">
+				{#each alerts as a (a.station)}
+					<li class="flex items-center gap-3">
+						<span
+							class={clsx('grid h-8 w-8 shrink-0 place-items-center rounded-full', SOFT[a.level])}
 						>
-						<span class="ml-auto text-sm text-gray-400">Forecast</span>
-						<span class="w-14 text-right font-semibold tracking-tight">{s.forecast}</span>
+							<span class={clsx('h-2 w-2 rounded-full', DOT[a.level])} aria-hidden="true"></span>
+						</span>
+						<div class="min-w-0">
+							<p class="truncate text-sm font-medium">{a.station}</p>
+							<p class="truncate text-xs text-gray-500">{a.text}</p>
+						</div>
 						<span
 							class={clsx(
-								'hidden w-20 rounded-full px-2.5 py-1 text-center text-xs font-medium capitalize md:block',
-								SOFT[s.alert]
+								'ml-auto shrink-0 rounded-full px-2.5 py-1 text-xs font-medium capitalize',
+								SOFT[a.level]
 							)}
 						>
-							{s.alert}
+							{a.level}
 						</span>
-					</div>
+					</li>
 				{/each}
-			</div>
-		</section>
-
-		<!-- alerts -->
-		<section
-			class={clsx(card, 'reveal p-6')}
-			style="animation-delay: 500ms"
-			aria-label="Recent alerts"
-		>
-			<div class="mb-4 flex items-center justify-between">
-				<h2 class="text-base font-semibold tracking-tight">Recent alerts</h2>
-				<span class="text-xs text-gray-400">{alerts.length} need attention</span>
-			</div>
-			{#if alerts.length}
-				<ul class="flex flex-col gap-3">
-					{#each alerts as a (a.station)}
-						<li class="flex items-center gap-3">
-							<span
-								class={clsx('grid h-8 w-8 shrink-0 place-items-center rounded-full', SOFT[a.level])}
-							>
-								<span class={clsx('h-2 w-2 rounded-full', DOT[a.level])} aria-hidden="true"></span>
-							</span>
-							<div class="min-w-0">
-								<p class="truncate text-sm font-medium">{a.station}</p>
-								<p class="truncate text-xs text-gray-500">{a.text}</p>
-							</div>
-							<span
-								class={clsx(
-									'ml-auto shrink-0 rounded-full px-2.5 py-1 text-xs font-medium capitalize',
-									SOFT[a.level]
-								)}
-							>
-								{a.level}
-							</span>
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="text-sm text-gray-400">No active alerts. All stations within safe range.</p>
-			{/if}
-		</section>
-	</main>
-</div>
+			</ul>
+		{:else}
+			<p class="text-sm text-gray-400">No active alerts. All stations within safe range.</p>
+		{/if}
+	</section>
+</AppShell>
 
 <style>
 	@keyframes rise {

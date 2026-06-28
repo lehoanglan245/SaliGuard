@@ -21,6 +21,20 @@ export const ALERT_BADGE: Record<AlertLevel, string> = {
 	red: 'bg-red-50 text-red-700'
 };
 
+// Stroke colours for SVG charts (hex, not Tailwind classes).
+export const ALERT_HEX: Record<AlertLevel, string> = {
+	green: '#22c55e',
+	yellow: '#eab308',
+	red: '#dc2626'
+};
+
+// Salinity thresholds: < 1 safe, 1–4 caution, > 4 danger (g/L).
+export function alertFor(ec: number): AlertLevel {
+	if (ec > 4) return 'red';
+	if (ec >= 1) return 'yellow';
+	return 'green';
+}
+
 export function relativeTime(iso: string): string {
 	const diffMs = Date.now() - new Date(iso).getTime();
 	const min = Math.round(diffMs / 60_000);
