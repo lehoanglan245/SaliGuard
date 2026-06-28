@@ -68,6 +68,31 @@ export interface TopStation {
 	alert: AlertLevel;
 }
 
+// Aggregated report for a station over the selected period.
+export interface StationReport {
+	station_id: string;
+	name: string;
+	region: string;
+	avgEc: number; // mean EC over the period (g/L)
+	peakEc: number; // max EC over the period (g/L)
+	alertCount: number; // threshold-crossings in the period
+	level: AlertLevel; // current status
+}
+
+export interface ReportData {
+	periodDays: number;
+	generatedAt: string; // ISO
+	network: {
+		avgEc: number;
+		peakEc: number;
+		yellowAlerts: number;
+		redAlerts: number;
+		stationsReporting: number;
+		totalStations: number;
+	};
+	stations: StationReport[];
+}
+
 export interface DashboardSummary {
 	total: number;
 	greenCount: number;

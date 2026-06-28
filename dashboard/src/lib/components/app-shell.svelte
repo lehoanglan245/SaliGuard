@@ -12,7 +12,7 @@
 	let mobileOpen = $state(false);
 
 	type NavIcon = 'overview' | 'stations' | 'map' | 'alerts' | 'reports';
-	type NavHref = '/' | '/stations' | '/map' | '/alerts';
+	type NavHref = '/' | '/stations' | '/map' | '/alerts' | '/reports';
 	type NavItem = {
 		label: string;
 		href?: NavHref;
@@ -31,7 +31,7 @@
 		},
 		{ label: 'Map', href: '/map', icon: 'map', active: path.startsWith('/map') },
 		{ label: 'Alerts', href: '/alerts', icon: 'alerts', active: path.startsWith('/alerts') },
-		{ label: 'Reports', icon: 'reports', muted: true }
+		{ label: 'Reports', href: '/reports', icon: 'reports', active: path.startsWith('/reports') }
 	]);
 
 	const linkBase = 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition';
