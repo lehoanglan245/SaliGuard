@@ -27,3 +27,17 @@ export async function getLatest(fetchFn: typeof fetch, stationId: string): Promi
 	if (!res.ok) throw new ApiError(`Failed to fetch latest for ${stationId}`, res.status);
 	return res.json();
 }
+
+export type ChatReply = { reply: string };
+
+// TODO: wire to the backend chatbot endpoint once it exists.
+// Expected contract: POST /api/chat { message } -> { reply }.
+export async function sendChatMessage(fetchFn: typeof fetch, message: string): Promise<ChatReply> {
+	const res = await fetchFn(`${baseUrl()}/api/chat`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ message })
+	});
+	if (!res.ok) throw new ApiError('Failed to send chat message', res.status);
+	return res.json();
+}
