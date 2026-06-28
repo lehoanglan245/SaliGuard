@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { fade, scale } from 'svelte/transition';
+	import { backOut } from 'svelte/easing';
 	import { clsx } from '$lib/clsx';
+	import { prefersReducedMotion } from '$lib/motion';
 	import { ALERT_LABEL, ALERT_STRIP, ALERT_HEX } from '$lib/alert-ui';
 	import type { StationDetail } from '$lib/types';
 
@@ -29,9 +32,16 @@
 
 	let hovered = $state<string | null>(null);
 	const activeId = $derived(hovered ?? focusId);
+
+	// Motion (reduced-motion aware): fade the map, pop the markers + popover.
+	const reduced = $derived(prefersReducedMotion());
+	const mapFade = $derived({ duration: reduced ? 0 : 400 });
+	const popDuration = $derived(reduced ? 0 : 160);
+	const markerIn = (i: number) =>
+		reduced ? { duration: 0 } : { duration: 320, delay: 120 + i * 70, start: 0.3, easing: backOut };
 </script>
 
-<div class="relative h-full w-full overflow-hidden rounded-3xl bg-[#eef3f7]">
+<div class="relative h-full w-full overflow-hidden rounded-3xl bg-[#eef3f7]" in:fade={mapFade}>
 	<!-- Decorative estuary backdrop (palette-matched, no external tiles). -->
 	<svg
 		viewBox="0 0 1000 780"
@@ -74,7 +84,7 @@
 	</svg>
 
 	<!-- Markers (HTML overlay → clean hover popovers + keyboard focus). -->
-	{#each placed as p (p.station.station_id)}
+	{#each placed as p, i (p.station.station_id)}
 		{@const active = activeId === p.station.station_id}
 		<a
 			href={resolve(`/stations/${p.station.station_id}`)}
@@ -87,7 +97,7 @@
 			aria-label="{p.station.name} — {ALERT_LABEL[p.station.alert]}, EC {p.station.ec} g/L"
 		>
 			<!-- pin -->
-			<span class="relative grid place-items-center">
+			<span class="relative grid place-items-center" in:scale={markerIn(i)}>
 				{#if p.station.alert === 'red'}
 					<span
 						class="absolute h-6 w-6 animate-ping rounded-full opacity-60"
@@ -108,7 +118,8 @@
 			<!-- popover -->
 			{#if active}
 				<div
-					class="absolute bottom-full left-1/2 z-20 mb-2 w-52 -translate-x-1/2 rounded-2xl border border-black/[0.06] bg-white p-3 shadow-[0_12px_30px_-12px_rgba(31,25,16,0.4)]"
+					class="absolute bottom-full left-1/2 z-20 mb-2 -ml-26 w-52 rounded-2xl border border-black/[0.06] bg-white p-3 shadow-[0_12px_30px_-12px_rgba(31,25,16,0.4)]"
+					transition:scale={{ duration: popDuration, start: 0.85, easing: backOut }}
 				>
 					<p class="text-sm font-semibold tracking-tight text-gray-900">{p.station.name}</p>
 					<p class="text-xs text-gray-500">{p.station.region}</p>
