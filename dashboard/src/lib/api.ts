@@ -1,6 +1,6 @@
 import { env } from '$env/dynamic/public';
-import type { Station, LatestReading, StationDetail, HistoryPoint } from './types';
-import { MOCK_STATION_DETAILS, mockHistory } from './stations-mock';
+import type { Station, LatestReading, StationDetail, HistoryPoint, AlertEvent } from './types';
+import { MOCK_STATION_DETAILS, mockHistory, mockAlertHistory } from './stations-mock';
 
 export class ApiError extends Error {
 	status: number;
@@ -52,6 +52,18 @@ export async function fetchStationDetails(fetchFn: typeof fetch): Promise<Statio
 		return (await res.json()) as StationDetail[];
 	} catch {
 		return MOCK_STATION_DETAILS;
+	}
+}
+
+// GET /api/alerts → threshold-crossing history. Falls back to generated mock
+// data on any error so the Alerts page always renders.
+export async function fetchAlertHistory(fetchFn: typeof fetch): Promise<AlertEvent[]> {
+	try {
+		const res = await fetchFn(`${baseUrl()}/api/alerts`, { signal: AbortSignal.timeout(2500) });
+		if (!res.ok) throw new ApiError('Failed to fetch alerts', res.status);
+		return (await res.json()) as AlertEvent[];
+	} catch {
+		return mockAlertHistory();
 	}
 }
 

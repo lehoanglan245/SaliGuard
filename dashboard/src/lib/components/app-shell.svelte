@@ -12,7 +12,7 @@
 	let mobileOpen = $state(false);
 
 	type NavIcon = 'overview' | 'stations' | 'map' | 'alerts' | 'reports';
-	type NavHref = '/' | '/stations' | '/map';
+	type NavHref = '/' | '/stations' | '/map' | '/alerts';
 	type NavItem = {
 		label: string;
 		href?: NavHref;
@@ -30,7 +30,7 @@
 			active: path.startsWith('/stations')
 		},
 		{ label: 'Map', href: '/map', icon: 'map', active: path.startsWith('/map') },
-		{ label: 'Alerts', icon: 'alerts', muted: true },
+		{ label: 'Alerts', href: '/alerts', icon: 'alerts', active: path.startsWith('/alerts') },
 		{ label: 'Reports', icon: 'reports', muted: true }
 	]);
 

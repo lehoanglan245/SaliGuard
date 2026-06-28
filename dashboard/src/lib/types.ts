@@ -49,6 +49,19 @@ export interface HistoryPoint {
 	level: number;
 }
 
+// A single threshold-crossing event for the Alerts history page.
+// Alerts only fire at caution (yellow) or danger (red) — never green.
+export interface AlertEvent {
+	id: string;
+	station_id: string;
+	station: string; // station name
+	region: string;
+	level: Exclude<AlertLevel, 'green'>;
+	ec: number; // g/L at the time of the alert
+	message: string;
+	ts: string; // ISO timestamp
+}
+
 export interface TopStation {
 	name: string;
 	value: number;
