@@ -3,6 +3,7 @@ import { browser } from '$app/environment';
 // Mock credential — swap for a real backend call later. Kept here so the whole
 // auth surface lives in one file.
 export const MOCK_EMAIL = 'admin@saliguard.vn';
+export const MOCK_PHONE = '0912345678';
 export const MOCK_PASSWORD = 'saliguard123';
 
 const SESSION_KEY = 'saliguard_session';
@@ -22,18 +23,31 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export interface LoginInput {
+	email: string;
+	phone: string;
+	password: string;
+}
+
 /**
- * Authenticate against the mock credential. Simulates ~600ms of network latency
- * and persists the session on success. Replace the body with a real API call
- * when the backend `POST /api/login` exists.
+ * Authenticate against the mock credential. The login succeeds when EITHER the
+ * email OR the phone matches the mock account and the password is correct.
+ * Simulates ~600ms of network latency and persists the session on success.
+ * Replace the body with a real API call when the backend `POST /api/login` exists.
  */
-export async function login(email: string, password: string): Promise<LoginResult> {
+export async function login({ email, phone, password }: LoginInput): Promise<LoginResult> {
 	await delay(NETWORK_DELAY_MS);
-	if (email !== MOCK_EMAIL || password !== MOCK_PASSWORD) {
-		return { ok: false, error: 'Email hoặc mật khẩu không đúng' };
+	const identityMatches = email === MOCK_EMAIL || phone === MOCK_PHONE;
+	if (!identityMatches || password !== MOCK_PASSWORD) {
+		return { ok: false, error: 'Incorrect login details' };
 	}
-	setSession(email);
+	setSession(email || phone);
 	return { ok: true };
+}
+
+/** Continue without an account — frontend-only guest session, no backend. */
+export function loginAsGuest(): void {
+	setSession('Guest');
 }
 
 export function setSession(email: string): void {
