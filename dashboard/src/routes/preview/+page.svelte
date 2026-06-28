@@ -1,60 +1,42 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { clsx } from '$lib/clsx';
-	import { clearSession } from '$lib/auth';
 
+	// Self-contained preview — inline mock data, no API/store dependency so the
+	// page always renders rich for design review. Existing routes untouched.
 	type Alert = 'green' | 'yellow' | 'red';
-	type Row = { name: string; ec: number; forecast: number; level: number; alert: Alert };
 
-	let { data }: { data: PageData } = $props();
-
-	// Fallback data so the page always renders rich while the API returns mocks/errors.
-	const MOCK_STATIONS: Row[] = [
+	const STATIONS: { name: string; ec: number; forecast: number; level: number; alert: Alert }[] = [
 		{ name: 'Lạch Tray', ec: 4.6, forecast: 5.0, level: 1.9, alert: 'red' },
 		{ name: 'Bạch Đằng', ec: 2.3, forecast: 2.8, level: 1.6, alert: 'yellow' },
 		{ name: 'Cấm', ec: 1.4, forecast: 1.7, level: 1.4, alert: 'yellow' },
 		{ name: 'Văn Úc', ec: 0.6, forecast: 0.8, level: 1.2, alert: 'green' },
 		{ name: 'Đá Bạc', ec: 0.4, forecast: 0.5, level: 1.1, alert: 'green' }
 	];
+
 	const TREND = [0.6, 0.9, 1.4, 2.1, 3.2, 2.6, 1.8];
 	const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-	const liveStations = $derived(
-		data.views
-			.filter((v) => v.reading !== null)
-			.map((v) => ({
-				name: v.station.name,
-				ec: v.reading!.ec,
-				forecast: v.reading!.forecast_24h,
-				level: v.reading!.level,
-				alert: v.reading!.alert
-			}))
-	);
-	const stations = $derived<Row[]>(liveStations.length ? liveStations : MOCK_STATIONS);
-
-	const total = $derived(stations.length);
-	const greenCount = $derived(stations.filter((s) => s.alert === 'green').length);
-	const atRisk = $derived(stations.filter((s) => s.alert !== 'green').length);
-	const safePct = $derived(total === 0 ? 0 : Math.round((greenCount / total) * 100));
-	const peak = $derived(stations.length ? Math.max(...stations.map((s) => s.forecast)) : 0);
-	const avgLevel = $derived(
-		stations.length ? stations.reduce((a, s) => a + s.level, 0) / stations.length : 0
-	);
-
-	const alerts = $derived(
-		stations
-			.filter((s) => s.alert !== 'green')
-			.map((s) => ({
-				station: s.name,
-				level: s.alert,
-				text:
-					s.alert === 'red'
-						? 'Exceeded 4 g/L — close the gates'
-						: 'Approaching the caution threshold'
-			}))
-	);
+	const ALERTS = [
+		{
+			station: 'Lạch Tray',
+			level: 'red' as Alert,
+			text: 'Exceeded 4 g/L — close the gates',
+			ago: '5 min ago'
+		},
+		{
+			station: 'Bạch Đằng',
+			level: 'yellow' as Alert,
+			text: 'Rising trend — prepare to act',
+			ago: '22 min ago'
+		},
+		{
+			station: 'Cấm',
+			level: 'yellow' as Alert,
+			text: 'Approaching caution threshold',
+			ago: '48 min ago'
+		},
+		{ station: 'Văn Úc', level: 'green' as Alert, text: 'Back to safe range', ago: '1 hr ago' }
+	];
 
 	const DOT: Record<Alert, string> = {
 		green: 'bg-emerald-500',
@@ -71,10 +53,10 @@
 	const W = 680;
 	const H = 240;
 	const PAD = 20;
-	const maxY = Math.max(...TREND) * 1.18;
+	const max = Math.max(...TREND) * 1.18;
 	const pts = TREND.map((v, i) => {
 		const x = PAD + (i / (TREND.length - 1)) * (W - 2 * PAD);
-		const y = H - PAD - (v / maxY) * (H - 2 * PAD);
+		const y = H - PAD - (v / max) * (H - 2 * PAD);
 		return [x, y] as const;
 	});
 	function smooth(p: readonly (readonly [number, number])[]): string {
@@ -106,11 +88,6 @@
 		'hover:shadow-[0_1px_2px_rgba(31,25,16,0.05),0_32px_60px_-30px_rgba(31,25,16,0.34)]'
 	);
 	const navLink = 'rounded-full px-3.5 py-1.5 text-sm text-gray-500 transition hover:text-gray-900';
-
-	function logout() {
-		clearSession();
-		goto(resolve('/login'));
-	}
 </script>
 
 <svelte:head><title>Overview — SaliGuard</title></svelte:head>
@@ -138,7 +115,6 @@
 			<nav class="ml-4 hidden items-center gap-1 md:flex" aria-label="Primary">
 				<a
 					href="#overview"
-					aria-current="page"
 					class="rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-gray-900 shadow-sm"
 					>Overview</a
 				>
@@ -167,38 +143,11 @@
 					class="grid h-9 w-9 place-items-center rounded-full bg-accent/15 text-sm font-semibold text-accent"
 					>AT</span
 				>
-				<button
-					type="button"
-					onclick={logout}
-					aria-label="Sign out"
-					class="grid h-9 w-9 place-items-center rounded-full text-gray-400 transition hover:bg-white/70 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-accent"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						class="h-4 w-4"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						aria-hidden="true"
-					>
-						<path
-							d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
-				</button>
 			</div>
 		</div>
 	</header>
 
-	<main class="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-20">
-		{#if data.error}
-			<p class="mb-6 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
-				Showing sample data — live API unavailable ({data.error}).
-			</p>
-		{/if}
-
+	<main class="relative z-10 mx-auto max-w-6xl px-6 pb-20 pt-10">
 		<!-- hero greeting -->
 		<div class="reveal mb-10">
 			<p class="text-sm font-medium tracking-wide text-gray-400">
@@ -211,14 +160,14 @@
 				Salinity overview
 			</h1>
 			<p class="mt-3 max-w-xl text-[15px] leading-relaxed text-gray-500">
-				{total} field stations along the Hải Phòng estuaries. Forecasts run 24–72 hours ahead, flagged
+				Five field stations along the Hải Phòng estuaries. Forecasts run 24–72 hours ahead, flagged
 				against the 1 &amp; 4 g/L thresholds.
 			</p>
 		</div>
 
 		<!-- KPI row -->
 		<section class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4" aria-label="Key metrics">
-			{#each [{ label: 'Safe stations', value: `${greenCount} / ${total}`, sub: `${safePct}% of network`, tone: 'text-emerald-600' }, { label: 'At risk', value: String(atRisk), sub: 'Yellow or red', tone: 'text-amber-600' }, { label: 'Peak salinity', value: peak.toFixed(1), unit: 'g/L', sub: '24h forecast', tone: 'text-red-600' }, { label: 'Avg water level', value: avgLevel.toFixed(1), unit: 'm', sub: 'Across network', tone: 'text-gray-500' }] as kpi, i (kpi.label)}
+			{#each [{ label: 'Safe stations', value: '2 / 5', sub: '40% of network', tone: 'text-emerald-600' }, { label: 'At risk', value: '3', sub: 'Yellow or red', tone: 'text-amber-600' }, { label: 'Peak salinity', value: '5.2', unit: 'g/L', sub: '+0.4 vs last week', tone: 'text-red-600' }, { label: 'Avg water level', value: '1.4', unit: 'm', sub: 'Stable', tone: 'text-gray-500' }] as kpi, i (kpi.label)}
 				<div class={clsx(card, 'reveal p-5')} style="animation-delay: {80 + i * 60}ms">
 					<p class="text-[13px] font-medium text-gray-500">{kpi.label}</p>
 					<p class="mt-3 text-3xl font-semibold tracking-tight">
@@ -322,12 +271,10 @@
 		>
 			<div class="flex items-center justify-between px-6 pt-5 pb-3">
 				<h2 class="text-base font-semibold tracking-tight">Stations</h2>
-				<a href="#stations" class="text-sm font-medium text-accent transition hover:underline"
-					>View all</a
-				>
+				<a href="#stations" class="text-sm font-medium text-accent hover:underline">View all</a>
 			</div>
 			<div class="divide-y divide-gray-100/80">
-				{#each stations as s (s.name)}
+				{#each STATIONS as s (s.name)}
 					<div class="flex items-center gap-4 px-6 py-3.5 transition hover:bg-white/50">
 						<span class={clsx('h-2.5 w-2.5 shrink-0 rounded-full', DOT[s.alert])} aria-hidden="true"
 						></span>
@@ -358,35 +305,24 @@
 		>
 			<div class="mb-4 flex items-center justify-between">
 				<h2 class="text-base font-semibold tracking-tight">Recent alerts</h2>
-				<span class="text-xs text-gray-400">{alerts.length} need attention</span>
+				<span class="text-xs text-gray-400">{ALERTS.length} need attention</span>
 			</div>
-			{#if alerts.length}
-				<ul class="flex flex-col gap-3">
-					{#each alerts as a (a.station)}
-						<li class="flex items-center gap-3">
-							<span
-								class={clsx('grid h-8 w-8 shrink-0 place-items-center rounded-full', SOFT[a.level])}
-							>
-								<span class={clsx('h-2 w-2 rounded-full', DOT[a.level])} aria-hidden="true"></span>
-							</span>
-							<div class="min-w-0">
-								<p class="truncate text-sm font-medium">{a.station}</p>
-								<p class="truncate text-xs text-gray-500">{a.text}</p>
-							</div>
-							<span
-								class={clsx(
-									'ml-auto shrink-0 rounded-full px-2.5 py-1 text-xs font-medium capitalize',
-									SOFT[a.level]
-								)}
-							>
-								{a.level}
-							</span>
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="text-sm text-gray-400">No active alerts. All stations within safe range.</p>
-			{/if}
+			<ul class="flex flex-col gap-3">
+				{#each ALERTS as a (a.station + a.ago)}
+					<li class="flex items-center gap-3">
+						<span
+							class={clsx('grid h-8 w-8 shrink-0 place-items-center rounded-full', SOFT[a.level])}
+						>
+							<span class={clsx('h-2 w-2 rounded-full', DOT[a.level])} aria-hidden="true"></span>
+						</span>
+						<div class="min-w-0">
+							<p class="truncate text-sm font-medium">{a.station}</p>
+							<p class="truncate text-xs text-gray-500">{a.text}</p>
+						</div>
+						<span class="ml-auto shrink-0 text-xs text-gray-400">{a.ago}</span>
+					</li>
+				{/each}
+			</ul>
 		</section>
 	</main>
 </div>

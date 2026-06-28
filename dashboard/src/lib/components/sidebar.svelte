@@ -1,4 +1,13 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { clearSession } from '$lib/auth';
+
+	function logout() {
+		clearSession();
+		goto(resolve('/login'));
+	}
+
 	const NAV_ITEMS = [
 		{ label: 'Tổng quan', active: true },
 		{ label: 'Trạm đo', active: false },
@@ -41,4 +50,26 @@
 			{/each}
 		</ul>
 	</nav>
+
+	<button
+		type="button"
+		onclick={logout}
+		class="mt-auto flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-accent"
+	>
+		<svg
+			viewBox="0 0 24 24"
+			class="h-4 w-4"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			aria-hidden="true"
+		>
+			<path
+				d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			/>
+		</svg>
+		Đăng xuất
+	</button>
 </aside>
