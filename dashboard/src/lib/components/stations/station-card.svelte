@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { clsx } from '$lib/clsx';
+	import { CARD_INTERACTIVE } from '$lib/ui';
 	import type { StationDetail } from '$lib/types';
-	import { ALERT_LABEL, ALERT_STRIP, ALERT_BADGE, relativeTime } from '$lib/alert-ui';
+	import { ALERT_LABEL, ALERT_STRIP, relativeTime } from '$lib/alert-ui';
 
 	interface Props {
 		station: StationDetail;
@@ -17,29 +18,25 @@
 	} as const;
 
 	const cardClass = clsx(
-		'group w-full overflow-hidden rounded-2xl border border-white/60 bg-white text-left',
-		'shadow-[0_1px_2px_rgba(31,25,16,0.04),0_16px_36px_-24px_rgba(31,25,16,0.25)]',
-		'transition duration-300 hover:-translate-y-0.5',
-		'hover:shadow-[0_1px_2px_rgba(31,25,16,0.05),0_28px_52px_-28px_rgba(31,25,16,0.32)]',
+		CARD_INTERACTIVE,
+		'group w-full overflow-hidden text-left',
 		'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
 	);
 </script>
 
 <button type="button" onclick={onClick} class={cardClass}>
-	<div class={clsx('h-1.5 w-full', ALERT_STRIP[station.alert])} aria-hidden="true"></div>
 	<div class="flex flex-col gap-4 p-5">
 		<div class="flex items-start justify-between gap-3">
 			<div class="min-w-0">
 				<p class="truncate text-base font-semibold tracking-tight">{station.name}</p>
 				<p class="text-xs text-gray-500">{station.region}</p>
 			</div>
-			<span
-				class={clsx(
-					'shrink-0 rounded-full px-2.5 py-1 text-xs font-medium',
-					ALERT_BADGE[station.alert]
-				)}
-			>
-				{ALERT_LABEL[station.alert]}
+			<span class="flex shrink-0 items-center gap-1.5">
+				<span
+					class={clsx('h-2.5 w-2.5 rounded-full', ALERT_STRIP[station.alert])}
+					aria-hidden="true"
+				></span>
+				<span class="text-xs font-medium text-gray-500">{ALERT_LABEL[station.alert]}</span>
 			</span>
 		</div>
 
