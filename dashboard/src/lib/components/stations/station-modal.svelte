@@ -4,7 +4,14 @@
 	import Chart from '$lib/chart.svelte';
 	import { fetchHistory } from '$lib/api';
 	import type { StationDetail, HistoryPoint } from '$lib/types';
-	import { ALERT_LABEL, ALERT_BADGE, ALERT_STRIP, relativeTime } from '$lib/alert-ui';
+	import {
+		ALERT_LABEL,
+		ALERT_BADGE,
+		ALERT_STRIP,
+		ALERT_HEX,
+		alertFor,
+		relativeTime
+	} from '$lib/alert-ui';
 
 	interface Props {
 		station: StationDetail | null;
@@ -50,14 +57,27 @@
 		return () => window.removeEventListener('keydown', onKey);
 	});
 
-	const stats = $derived(
+	// Salinity metrics as colour-coded gauges (threshold 1 & 4 g/L).
+	const GAUGE_MAX = 6;
+	const GAUGE_C = 2 * Math.PI * 30;
+	const gauges = $derived(
 		station
 			? [
-					{ label: 'Salinity (EC)', value: `${station.ec}`, unit: 'g/L' },
+					{ label: 'Salinity (EC)', value: station.ec },
+					{ label: 'Forecast 24h', value: station.forecast_24h },
+					{ label: 'Forecast 48h', value: station.forecast_48h }
+				].map((g) => ({
+					...g,
+					level: alertFor(g.value),
+					fill: Math.min(g.value / GAUGE_MAX, 1) * GAUGE_C
+				}))
+			: []
+	);
+	const extras = $derived(
+		station
+			? [
 					{ label: 'Temperature', value: `${station.temp}`, unit: '°C' },
-					{ label: 'Water level', value: `${station.level}`, unit: 'm' },
-					{ label: 'Forecast 24h', value: `${station.forecast_24h}`, unit: 'g/L' },
-					{ label: 'Forecast 48h', value: `${station.forecast_48h}`, unit: 'g/L' }
+					{ label: 'Water level', value: `${station.level}`, unit: 'm' }
 				]
 			: []
 	);
@@ -123,9 +143,47 @@
 				</div>
 			</div>
 
-			<div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
-				{#each stats as stat (stat.label)}
-					<div class="rounded-xl bg-cream px-3 py-2.5">
+			<div class="mb-3 grid grid-cols-3 gap-3">
+				{#each gauges as g (g.label)}
+					<div class={clsx('flex flex-col items-center rounded-2xl p-3', ALERT_BADGE[g.level])}>
+						<div class="relative grid place-items-center">
+							<svg viewBox="0 0 72 72" class="h-20 w-20 -rotate-90">
+								<circle
+									cx="36"
+									cy="36"
+									r="30"
+									fill="none"
+									stroke="currentColor"
+									stroke-opacity="0.18"
+									stroke-width="7"
+								/>
+								<circle
+									cx="36"
+									cy="36"
+									r="30"
+									fill="none"
+									stroke={ALERT_HEX[g.level]}
+									stroke-width="7"
+									stroke-linecap="round"
+									stroke-dasharray="{g.fill} {GAUGE_C}"
+								/>
+							</svg>
+							<div class="absolute text-center">
+								<p class="text-lg leading-none font-semibold tracking-tight text-gray-900">
+									{g.value}
+								</p>
+								<p class="text-[10px] text-gray-500">g/L</p>
+							</div>
+						</div>
+						<p class="mt-2 text-[11px] font-medium text-gray-600">{g.label}</p>
+						<p class="text-[11px] font-semibold">{ALERT_LABEL[g.level]}</p>
+					</div>
+				{/each}
+			</div>
+
+			<div class="mb-6 grid grid-cols-2 gap-3">
+				{#each extras as stat (stat.label)}
+					<div class="rounded-2xl bg-cream px-4 py-3">
 						<p class="text-[11px] text-gray-500">{stat.label}</p>
 						<p class="mt-0.5 text-lg font-semibold tracking-tight">
 							{stat.value}<span class="ml-0.5 text-xs font-medium text-gray-400">{stat.unit}</span>
