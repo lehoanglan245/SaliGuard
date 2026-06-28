@@ -50,7 +50,11 @@
 					class={path.startsWith('/stations') ? navActive : navLink}
 					aria-current={path.startsWith('/stations') ? 'page' : undefined}>Stations</a
 				>
-				<span class={navMuted}>Map</span>
+				<a
+					href={resolve('/map')}
+					class={path.startsWith('/map') ? navActive : navLink}
+					aria-current={path.startsWith('/map') ? 'page' : undefined}>Map</a
+				>
 				<span class={navMuted}>Alerts</span>
 				<span class={navMuted}>Reports</span>
 			</nav>
