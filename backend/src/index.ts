@@ -60,10 +60,8 @@ client.on('message', async (topic: string, message: Buffer) => {
   const { temp, ec, level } = payload;
   console.log(`[MQTT] ${station_id} =>`, payload);
 
-  // 3a. Lưu vào PostgreSQL
-  await insertTelemetry(station_id, temp, ec, level);
-
-  // 3b. Gọi AI Engine để lấy dự báo
+  // 3a. Gọi AI Engine để lấy dự báo (trước, để lưu kèm vào DB).
+  let forecast: number | null = null;
   try {
     const response = await fetch(AI_ENGINE_URL, {
       method: 'POST',
@@ -71,23 +69,24 @@ client.on('message', async (topic: string, message: Buffer) => {
       body: JSON.stringify({ temp, ec, level }),
     });
 
-    if (!response.ok) {
+    if (response.ok) {
+      const result = (await response.json()) as ForecastResponse;
+      forecast = result.forecast_24h;
+      console.log(`[AI] ${station_id} forecast_24h = ${forecast} g/L`);
+
+      if (forecast > RED_THRESHOLD) {
+        console.warn(
+          `[ALERT] 🔴 RED ALERT for station "${station_id}": forecast ${forecast} g/L > ${RED_THRESHOLD} g/L`
+        );
+      }
+    } else {
       console.error(`[AI] Engine responded with status ${response.status}`);
-      return;
-    }
-
-    const result = (await response.json()) as ForecastResponse;
-    const forecast = result.forecast_24h;
-
-    console.log(`[AI] ${station_id} forecast_24h = ${forecast} g/L`);
-
-    if (forecast > RED_THRESHOLD) {
-      console.warn(
-        `[ALERT] 🔴 RED ALERT for station "${station_id}": forecast ${forecast} g/L > ${RED_THRESHOLD} g/L`
-      );
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[AI] Failed to reach AI Engine at ${AI_ENGINE_URL}:`, msg);
   }
+
+  // 3b. Lưu telemetry + forecast vào PostgreSQL (forecast có thể null nếu AI lỗi).
+  await insertTelemetry(station_id, temp, ec, level, forecast);
 });
