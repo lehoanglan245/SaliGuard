@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { clsx } from '$lib/clsx';
 	import { CARD_INTERACTIVE } from '$lib/ui';
+	import { reveal } from '$lib/actions/reveal';
 
 	type Alert = 'green' | 'yellow' | 'red';
 	type AlertItem = { station: string; level: Alert; text: string };
@@ -22,11 +23,7 @@
 	};
 </script>
 
-<section
-	class={clsx(CARD_INTERACTIVE, 'reveal p-6')}
-	style="animation-delay: 500ms"
-	aria-label="Recent alerts"
->
+<section use:reveal class={clsx(CARD_INTERACTIVE, 'p-6')} aria-label="Recent alerts">
 	<div class="mb-4 flex items-center justify-between">
 		<h2 class="text-base font-semibold tracking-tight">Recent alerts</h2>
 		<span class="text-xs text-gray-400">{alerts.length} need attention</span>
@@ -59,24 +56,3 @@
 		<p class="text-sm text-gray-400">No active alerts. All stations within safe range.</p>
 	{/if}
 </section>
-
-<style>
-	@keyframes rise {
-		from {
-			opacity: 0;
-			transform: translateY(10px);
-		}
-		to {
-			opacity: 1;
-			transform: none;
-		}
-	}
-	.reveal {
-		animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.reveal {
-			animation: none;
-		}
-	}
-</style>
