@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { clearSession } from '$lib/auth';
+	import LogoIcon from '$lib/components/logo-icon.svelte';
 
 	function logout() {
 		clearSession();
@@ -21,7 +22,7 @@
 
 <aside class="hidden h-full w-64 flex-col gap-6 bg-card p-6 lg:flex">
 	<div class="flex items-center gap-2">
-		<span class="h-7 w-7 rounded-full bg-accent" aria-hidden="true"></span>
+		<LogoIcon class="h-7 w-7 shrink-0" />
 		<span class="text-lg font-semibold">SaliGuard</span>
 	</div>
 
