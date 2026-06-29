@@ -49,6 +49,7 @@
 		"wrangler": "^4.97.0"
 	},
 	"dependencies": {
-		"uplot": "^1.6.32"
+		"uplot": "^1.6.32",
+		"zod": "^4.4.3"
 	}
 }
