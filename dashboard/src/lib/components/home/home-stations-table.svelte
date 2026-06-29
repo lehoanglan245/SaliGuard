@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { clsx } from '$lib/clsx';
 	import { CARD_INTERACTIVE } from '$lib/ui';
+	import { reveal } from '$lib/actions/reveal';
 
 	type Alert = 'green' | 'yellow' | 'red';
 	type Row = { name: string; ec: number; forecast: number; level: number; alert: Alert };
@@ -23,11 +24,7 @@
 	};
 </script>
 
-<section
-	class={clsx(CARD_INTERACTIVE, 'reveal mb-6 overflow-hidden')}
-	style="animation-delay: 440ms"
-	aria-label="Stations"
->
+<section use:reveal class={clsx(CARD_INTERACTIVE, 'mb-6 overflow-hidden')} aria-label="Stations">
 	<div class="flex items-center justify-between px-6 pt-5 pb-3">
 		<h2 class="text-base font-semibold tracking-tight">Stations</h2>
 		<a
@@ -58,24 +55,3 @@
 		{/each}
 	</div>
 </section>
-
-<style>
-	@keyframes rise {
-		from {
-			opacity: 0;
-			transform: translateY(10px);
-		}
-		to {
-			opacity: 1;
-			transform: none;
-		}
-	}
-	.reveal {
-		animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.reveal {
-			animation: none;
-		}
-	}
-</style>

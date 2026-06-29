@@ -67,7 +67,7 @@
 	{/if}
 
 	<HomeHero {total} />
-	<HomeKpiRow {greenCount} {total} {safePct} {atRisk} {peak} {avgLevel} />
+	<HomeKpiRow {greenCount} {total} {safePct} {atRisk} {peak} {avgLevel} {stations} />
 	<HomeTrendChart />
 	<HomeStationsTable {stations} />
 	<HomeAlerts {alerts} />
