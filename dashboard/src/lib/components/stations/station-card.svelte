@@ -4,6 +4,7 @@
 	import { CARD_INTERACTIVE } from '$lib/ui';
 	import type { StationDetail } from '$lib/types';
 	import { ALERT_LABEL, ALERT_STRIP, relativeTime } from '$lib/alert-ui';
+	import LeafStatus from '$lib/components/leaf-status.svelte';
 
 	interface Props {
 		station: StationDetail;
@@ -40,13 +41,14 @@
 			</span>
 		</div>
 
-		<div class="flex items-end justify-between">
+		<div class="flex items-center justify-between gap-2">
 			<div>
 				<p class="text-3xl font-semibold tracking-tight">
 					{station.ec}<span class="ml-1 text-base font-medium text-gray-400">g/L</span>
 				</p>
 				<p class="text-xs text-gray-400">Salinity (EC)</p>
 			</div>
+			<LeafStatus alert={station.alert} />
 			<span class={clsx('text-lg font-semibold', TREND_TONE[station.trend])} aria-hidden="true">
 				{TREND_GLYPH[station.trend]}
 			</span>
