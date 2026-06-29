@@ -6,9 +6,14 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { fade } from 'svelte/transition';
+	import { prefersReducedMotion } from '$lib/motion';
 	import { getSession } from '$lib/auth';
 
 	let { children } = $props();
+
+	// Cross-route fade; honour reduced-motion by collapsing the duration.
+	const fadeDuration = $derived(prefersReducedMotion() ? 0 : 200);
 
 	// Re-read the session on every navigation (localStorage isn't reactive, so
 	// track the pathname to recompute after login/logout redirects).
@@ -29,6 +34,10 @@
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
 {#if showApp}
-	{@render children()}
+	{#key page.url.pathname}
+		<div in:fade={{ duration: fadeDuration }}>
+			{@render children()}
+		</div>
+	{/key}
 	{#if !onLogin}<ChatWidget />{/if}
 {/if}
