@@ -5,6 +5,7 @@
 	import { resolve } from '$app/paths';
 	import { clsx } from '$lib/clsx';
 	import { clearSession } from '$lib/auth';
+	import logo from '$lib/assets/logo.png';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -115,7 +116,12 @@
 		)}
 	>
 		<div class="flex items-center gap-2 px-6 py-5">
-			<span class="h-7 w-7 rounded-full bg-accent" aria-hidden="true"></span>
+			<img
+				src={logo}
+				alt=""
+				class="h-7 w-7 shrink-0 rounded-full object-cover"
+				aria-hidden="true"
+			/>
 			<span class="text-[15px] font-semibold tracking-tight">SaliGuard</span>
 		</div>
 
