@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { sendChatMessage, ApiError } from '$lib/api';
+	import { sendChatMessage, ApiError, type ChatTurn } from '$lib/api';
+	import { renderMarkdown } from '$lib/markdown';
 
 	type ChatMessage = { id: number; role: 'user' | 'bot'; text: string };
 
@@ -38,7 +39,11 @@
 		scrollToEnd();
 
 		try {
-			const { reply } = await sendChatMessage(fetch, text);
+			const turns: ChatTurn[] = messages
+				.filter((m) => m.id !== 0)
+				.map((m) => ({ role: m.role === 'user' ? 'user' : 'model', text: m.text }));
+			while (turns.length > 0 && turns[0]?.role !== 'user') turns.shift();
+			const { reply } = await sendChatMessage(fetch, turns.slice(-40));
 			messages = [...messages, { id: nextId++, role: 'bot', text: reply }];
 		} catch (err) {
 			const errText =
@@ -100,13 +105,21 @@
 			>
 				{#each messages as message (message.id)}
 					<div class={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-						<p
-							class={message.role === 'user'
-								? 'max-w-[80%] rounded-2xl rounded-br-sm bg-accent px-3 py-2 text-sm text-white'
-								: 'max-w-[80%] rounded-2xl rounded-bl-sm bg-cream px-3 py-2 text-sm text-gray-700'}
-						>
-							{message.text}
-						</p>
+						{#if message.role === 'user'}
+							<p
+								class="max-w-[80%] rounded-2xl rounded-br-sm bg-accent px-3 py-2 text-sm whitespace-pre-wrap text-white"
+							>
+								{message.text}
+							</p>
+						{:else}
+							<div
+								class="max-w-[80%] rounded-2xl rounded-bl-sm bg-cream px-3 py-2 text-sm leading-relaxed text-gray-700"
+							>
+								<!-- renderMarkdown escapes HTML first, output is XSS-safe -->
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+								{@html renderMarkdown(message.text)}
+							</div>
+						{/if}
 					</div>
 				{/each}
 				{#if sending}

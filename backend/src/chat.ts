@@ -3,6 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import { getStations, getLatestReading, getAlerts } from './db.js';
 import { mockDetail } from './mock.js';
 import { classifyAlert } from './alert.js';
+import type { ChatTurn } from './schemas.js';
 
 /** Model Gemini dùng cho chatbot (đổi qua env CHAT_MODEL nếu cần). */
 const CHAT_MODEL = process.env.CHAT_MODEL ?? 'gemini-2.5-flash';
@@ -59,9 +60,10 @@ Quy tắc trả lời:
 - Không bịa số liệu hay trạm không tồn tại.`;
 
 /**
- * Gửi tin nhắn người dùng tới Gemini kèm ngữ cảnh số liệu trạm, trả về câu trả lời.
+ * Gửi cả mạch hội thoại tới Gemini kèm ngữ cảnh số liệu trạm (để nhớ ngữ cảnh
+ * giữa các lượt), trả về câu trả lời cho lượt mới nhất.
  */
-export async function askChat(message: string): Promise<string> {
+export async function askChat(messages: ChatTurn[]): Promise<string> {
   if (!GEMINI_API_KEY) {
     throw new ChatUnavailableError('GEMINI_API_KEY chưa được cấu hình');
   }
@@ -69,9 +71,14 @@ export async function askChat(message: string): Promise<string> {
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   const context = await buildStationContext();
 
+  const contents = messages.map((m) => ({
+    role: m.role,
+    parts: [{ text: m.text }],
+  }));
+
   const response = await ai.models.generateContent({
     model: CHAT_MODEL,
-    contents: message,
+    contents,
     config: {
       systemInstruction: `${SYSTEM_BASE}\n\n${context}`,
       maxOutputTokens: 1024,
