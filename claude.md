@@ -50,7 +50,6 @@ Here are several guidelines you must always follow:
 - Follow https://svelte.dev/llms.txt when writing Svelte code.
   - Do not update states using `$effect`. If a variable depends on states, use `$derived` instead.
 - You must always use Svelte 5 syntax and Tailwind utility classes whenever possible.
-
 - You must use kebab-case rather than camelCase or snake_case for file names.
 - You must use camelCase for variables and SCREAMING_SNAKE_CASE for constants.
 - Use Zod to validate inputs passed to remote functions. Instructions are provided at https://zod.dev/llms.txt.
