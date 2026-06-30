@@ -11,7 +11,8 @@ import {
 } from './db.js';
 import { mockLatest, mockHistory, mockAlerts, mockDetail } from './mock.js';
 import { classifyAlert, trendOf, type AlertLevel } from './alert.js';
-import { stationQuerySchema, historyQuerySchema } from './schemas.js';
+import { stationQuerySchema, historyQuerySchema, chatBodySchema } from './schemas.js';
+import { askChat, ChatUnavailableError } from './chat.js';
 
 /**
  * Mã trạm DUY NHẤT gắn phần cứng thật (ESP32). Trạm này lấy dữ liệu từ DB;
@@ -225,6 +226,26 @@ app.get('/api/alerts', async (_req: Request, res: Response) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[API] /api/alerts failed:', message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/chat - trợ lý ảo trả lời câu hỏi về độ mặn (Gemini + dữ liệu trạm)
+app.post('/api/chat', async (req: Request, res: Response) => {
+  const parsed = chatBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid body' });
+  }
+
+  try {
+    const reply = await askChat(parsed.data.message);
+    res.json({ reply });
+  } catch (err) {
+    if (err instanceof ChatUnavailableError) {
+      return res.status(503).json({ error: 'Chatbot chưa được cấu hình API key' });
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API] /api/chat failed:', message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
