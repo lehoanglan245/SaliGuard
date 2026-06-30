@@ -36,8 +36,12 @@ CREATE TABLE IF NOT EXISTS telemetry (
     temp         REAL,
     ec           REAL,
     level        REAL,
-    forecast_24h REAL  -- dự báo độ mặn 24h do AI Engine trả về (lưu sẵn để API đọc nhanh)
+    forecast_24h REAL, -- dự báo độ mặn 24h do AI Engine trả về (lưu sẵn để API đọc nhanh)
+    forecast_48h REAL  -- dự báo độ mặn 48h do AI Engine trả về
 );
+
+-- Bảng đã tồn tại từ trước (chưa có cột 48h) => thêm cột cho an toàn khi chạy lại.
+ALTER TABLE telemetry ADD COLUMN IF NOT EXISTS forecast_48h REAL;
 
 -- Chuyển telemetry thành hypertable, phân mảnh theo cột thời gian.
 -- if_not_exists => chạy lại script nhiều lần không gây lỗi.

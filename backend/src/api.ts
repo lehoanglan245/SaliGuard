@@ -49,6 +49,11 @@ function trendOf(current: number, forecast: number): 'up' | 'down' | 'flat' {
   return 'flat';
 }
 
+// GET /health - kiểm tra trạng thái service (dùng cho monitor/uptime check).
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', uptime: process.uptime() });
+});
+
 // GET /api/stations - danh sách trạm kèm số liệu chi tiết (StationDetail).
 // Trạm thật lấy từ DB; các trạm còn lại trả mock để mọi trang đều có dữ liệu.
 app.get('/api/stations', async (_req: Request, res: Response) => {
@@ -74,7 +79,8 @@ app.get('/api/stations', async (_req: Request, res: Response) => {
             temp = row.temp;
             level = row.level;
             forecast24 = row.forecast_24h ?? row.ec;
-            forecast48 = forecast24; // chưa có dự báo 48h riêng
+            // Dự báo 48h thật từ AI Engine; nếu chưa có thì lùi về 24h.
+            forecast48 = row.forecast_48h ?? forecast24;
             updatedAt = new Date(row.updated_at).toISOString();
           }
         }
