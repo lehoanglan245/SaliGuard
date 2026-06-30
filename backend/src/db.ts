@@ -50,7 +50,8 @@ export interface LatestRow {
   temp: number;
   ec: number;
   level: number;
-  forecast_24h: number;
+  forecast_24h: number | null;
+  forecast_48h: number | null;
   updated_at: string;
 }
 
@@ -62,21 +63,23 @@ export interface LatestRow {
  * @param ec - Độ dẫn điện / độ mặn (g/L)
  * @param level - Mực nước (m)
  * @param forecast_24h - Dự báo độ mặn 24h từ AI Engine (có thể null nếu AI lỗi)
+ * @param forecast_48h - Dự báo độ mặn 48h từ AI Engine (có thể null nếu AI lỗi)
  */
 export async function insertTelemetry(
   station_id: string,
   temp: number,
   ec: number,
   level: number,
-  forecast_24h: number | null = null
+  forecast_24h: number | null = null,
+  forecast_48h: number | null = null
 ): Promise<void> {
   const sql = `
-    INSERT INTO telemetry (time, station_id, temp, ec, level, forecast_24h)
-    VALUES (NOW(), $1, $2, $3, $4, $5)
+    INSERT INTO telemetry (time, station_id, temp, ec, level, forecast_24h, forecast_48h)
+    VALUES (NOW(), $1, $2, $3, $4, $5, $6)
   `;
 
   try {
-    await pool.query(sql, [station_id, temp, ec, level, forecast_24h]);
+    await pool.query(sql, [station_id, temp, ec, level, forecast_24h, forecast_48h]);
     console.log(`[DB] Inserted telemetry for station "${station_id}"`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -115,17 +118,35 @@ export async function getHistory(
 }
 
 /**
- * Lấy các bản ghi vượt ngưỡng cảnh báo (>= 1 g/L theo forecast, hoặc ec nếu
- * chưa có forecast) trên toàn mạng lưới, mới nhất trước.
+ * Lấy các SỰ KIỆN cảnh báo trên toàn mạng lưới, mới nhất trước.
+ *
+ * Chỉ giữ thời điểm mức cảnh báo "LEO THANG" (green→yellow, yellow→red...) thay
+ * vì trả mọi bản ghi vượt ngưỡng — tránh trùng lặp dày đặc khi trạm đo liên tục.
+ * Mức tính theo COALESCE(forecast_24h, ec): >=4 = đỏ (2), >=1 = vàng (1).
+ * Dùng LAG để so mức của lần đo liền trước trong cùng một trạm.
  */
 export async function getAlerts(limit = 200): Promise<AlertRow[]> {
   const sql = `
-    SELECT t.time AS ts, t.station_id, s.name AS station, s.region,
-           t.ec, t.forecast_24h
-    FROM telemetry t
-    JOIN stations s ON s.station_id = t.station_id
-    WHERE COALESCE(t.forecast_24h, t.ec) >= 1
-    ORDER BY t.time DESC
+    WITH leveled AS (
+      SELECT t.time AS ts, t.station_id, s.name AS station, s.region,
+             t.ec, t.forecast_24h,
+             CASE
+               WHEN COALESCE(t.forecast_24h, t.ec) >= 4 THEN 2
+               WHEN COALESCE(t.forecast_24h, t.ec) >= 1 THEN 1
+               ELSE 0
+             END AS lvl
+      FROM telemetry t
+      JOIN stations s ON s.station_id = t.station_id
+    ),
+    escalations AS (
+      SELECT leveled.*,
+             LAG(lvl) OVER (PARTITION BY station_id ORDER BY ts) AS prev_lvl
+      FROM leveled
+    )
+    SELECT ts, station_id, station, region, ec, forecast_24h
+    FROM escalations
+    WHERE lvl > 0 AND lvl > COALESCE(prev_lvl, 0)
+    ORDER BY ts DESC
     LIMIT $1
   `;
   const { rows } = await pool.query<AlertRow>(sql, [limit]);
@@ -145,7 +166,7 @@ export async function stationExists(stationId: string): Promise<boolean> {
  */
 export async function getLatestReading(stationId: string): Promise<LatestRow | null> {
   const sql = `
-    SELECT station_id, temp, ec, level, forecast_24h, time AS updated_at
+    SELECT station_id, temp, ec, level, forecast_24h, forecast_48h, time AS updated_at
     FROM telemetry
     WHERE station_id = $1
     ORDER BY time DESC

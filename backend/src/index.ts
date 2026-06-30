@@ -13,6 +13,7 @@ interface TelemetryPayload {
 /** Kết quả dự báo trả về từ AI Engine. */
 interface ForecastResponse {
   forecast_24h: number;
+  forecast_48h: number;
 }
 
 const MQTT_URL = process.env.MQTT_URL ?? 'mqtt://localhost:1883';
@@ -61,7 +62,8 @@ client.on('message', async (topic: string, message: Buffer) => {
   console.log(`[MQTT] ${station_id} =>`, payload);
 
   // 3a. Gọi AI Engine để lấy dự báo (trước, để lưu kèm vào DB).
-  let forecast: number | null = null;
+  let forecast24: number | null = null;
+  let forecast48: number | null = null;
   try {
     const response = await fetch(AI_ENGINE_URL, {
       method: 'POST',
@@ -71,12 +73,15 @@ client.on('message', async (topic: string, message: Buffer) => {
 
     if (response.ok) {
       const result = (await response.json()) as ForecastResponse;
-      forecast = result.forecast_24h;
-      console.log(`[AI] ${station_id} forecast_24h = ${forecast} g/L`);
+      forecast24 = result.forecast_24h;
+      forecast48 = result.forecast_48h;
+      console.log(
+        `[AI] ${station_id} forecast_24h = ${forecast24} g/L, forecast_48h = ${forecast48} g/L`
+      );
 
-      if (forecast > RED_THRESHOLD) {
+      if (forecast24 > RED_THRESHOLD) {
         console.warn(
-          `[ALERT] 🔴 RED ALERT for station "${station_id}": forecast ${forecast} g/L > ${RED_THRESHOLD} g/L`
+          `[ALERT] 🔴 RED ALERT for station "${station_id}": forecast ${forecast24} g/L > ${RED_THRESHOLD} g/L`
         );
       }
     } else {
@@ -88,5 +93,5 @@ client.on('message', async (topic: string, message: Buffer) => {
   }
 
   // 3b. Lưu telemetry + forecast vào PostgreSQL (forecast có thể null nếu AI lỗi).
-  await insertTelemetry(station_id, temp, ec, level, forecast);
+  await insertTelemetry(station_id, temp, ec, level, forecast24, forecast48);
 });
