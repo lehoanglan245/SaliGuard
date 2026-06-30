@@ -238,7 +238,7 @@ app.post('/api/chat', async (req: Request, res: Response) => {
   }
 
   try {
-    const reply = await askChat(parsed.data.message);
+    const reply = await askChat(parsed.data.messages);
     res.json({ reply });
   } catch (err) {
     if (err instanceof ChatUnavailableError) {
