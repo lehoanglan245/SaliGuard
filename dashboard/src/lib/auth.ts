@@ -71,3 +71,15 @@ export function clearSession(): void {
 	if (!browser) return;
 	localStorage.removeItem(SESSION_KEY);
 }
+
+const ONBOARDING_KEY = 'saliguard_onboarding_done';
+
+export function isOnboardingDone(): boolean {
+	if (!browser) return false;
+	return localStorage.getItem(ONBOARDING_KEY) === '1';
+}
+
+export function markOnboardingDone(): void {
+	if (!browser) return;
+	localStorage.setItem(ONBOARDING_KEY, '1');
+}

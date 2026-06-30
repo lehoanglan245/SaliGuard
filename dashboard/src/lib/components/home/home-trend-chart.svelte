@@ -223,7 +223,7 @@
 		></button>
 
 		<div
-			class="relative z-10 max-h-[85vh] w-full overflow-y-auto rounded-3xl bg-white p-8 shadow-[0_4px_48px_rgba(31,25,16,0.22)] modal-enter"
+			class="modal-scroll modal-enter relative z-10 max-h-[85vh] w-full overflow-y-auto rounded-3xl bg-white p-8 shadow-[0_4px_48px_rgba(31,25,16,0.22)]"
 		>
 			<div class="mb-6 flex items-start justify-between">
 				<div>
@@ -400,6 +400,28 @@
 	}
 	.modal-enter {
 		animation: modal-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+	}
+	/* inset, rounded scrollbar so it clears the panel's rounded corners */
+	.modal-scroll {
+		scrollbar-gutter: stable;
+		scrollbar-width: thin;
+		scrollbar-color: rgba(31, 25, 16, 0.18) transparent;
+	}
+	.modal-scroll::-webkit-scrollbar {
+		width: 12px;
+	}
+	.modal-scroll::-webkit-scrollbar-track {
+		background: transparent;
+		margin: 20px 0;
+	}
+	.modal-scroll::-webkit-scrollbar-thumb {
+		background-color: rgba(31, 25, 16, 0.18);
+		border-radius: 9999px;
+		border: 4px solid transparent;
+		background-clip: padding-box;
+	}
+	.modal-scroll::-webkit-scrollbar-thumb:hover {
+		background-color: rgba(31, 25, 16, 0.3);
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.modal-enter {
