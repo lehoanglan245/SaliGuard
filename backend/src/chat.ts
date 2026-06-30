@@ -6,7 +6,7 @@ import { classifyAlert } from './alert.js';
 import type { ChatTurn } from './schemas.js';
 
 /** Model Gemini dùng cho chatbot (đổi qua env CHAT_MODEL nếu cần). */
-const CHAT_MODEL = process.env.CHAT_MODEL ?? 'gemini-2.5-flash';
+const CHAT_MODEL = process.env.CHAT_MODEL ?? 'gemini-3.1-flash-lite';
 const REAL_STATION_ID = process.env.REAL_STATION_ID ?? 'ST001';
 
 /** API key Gemini (chấp nhận cả GEMINI_API_KEY lẫn GOOGLE_API_KEY). */
