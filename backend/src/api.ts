@@ -10,15 +10,14 @@ import {
   getAlerts,
 } from './db.js';
 import { mockLatest, mockHistory, mockAlerts, mockDetail } from './mock.js';
+import { classifyAlert, trendOf, type AlertLevel } from './alert.js';
+import { stationQuerySchema, historyQuerySchema } from './schemas.js';
 
 /**
  * Mã trạm DUY NHẤT gắn phần cứng thật (ESP32). Trạm này lấy dữ liệu từ DB;
  * mọi trạm còn lại trả dữ liệu mock để Dashboard luôn đầy đủ.
  */
 const REAL_STATION_ID = process.env.REAL_STATION_ID ?? 'ST001';
-
-/** Trạng thái cảnh báo dựa trên độ mặn dự báo. */
-type AlertLevel = 'green' | 'yellow' | 'red';
 
 interface LatestReading {
   station_id: string;
@@ -34,20 +33,6 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-
-/** Quy đổi giá trị độ mặn (g/L) sang mức cảnh báo theo ngưỡng 1 & 4 g/L. */
-function classifyAlert(value: number): AlertLevel {
-  if (value >= 4) return 'red';
-  if (value >= 1) return 'yellow';
-  return 'green';
-}
-
-/** Xu hướng EC dựa trên forecast so với giá trị hiện tại. */
-function trendOf(current: number, forecast: number): 'up' | 'down' | 'flat' {
-  if (forecast > current + 0.1) return 'up';
-  if (forecast < current - 0.1) return 'down';
-  return 'flat';
-}
 
 // GET /health - kiểm tra trạng thái service (dùng cho monitor/uptime check).
 app.get('/health', (_req: Request, res: Response) => {
@@ -114,11 +99,11 @@ app.get('/api/stations', async (_req: Request, res: Response) => {
 
 // GET /api/latest?station=ID - số liệu mới nhất của một trạm (đọc từ DB)
 app.get('/api/latest', async (req: Request, res: Response) => {
-  const station = String(req.query.station ?? '');
-
-  if (!station) {
-    return res.status(400).json({ error: 'Missing required query param: station' });
+  const parsed = stationQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid query' });
   }
+  const { station } = parsed.data;
 
   try {
     if (!(await stationExists(station))) {
@@ -164,20 +149,11 @@ app.get('/api/latest', async (req: Request, res: Response) => {
 
 // GET /api/history?station=ID&from=ISO&to=ISO - chuỗi dữ liệu cho biểu đồ
 app.get('/api/history', async (req: Request, res: Response) => {
-  const station = String(req.query.station ?? '');
-  const from = String(req.query.from ?? '');
-  const to = String(req.query.to ?? '');
-
-  if (!station || !from || !to) {
-    return res
-      .status(400)
-      .json({ error: 'Missing required query params: station, from, to' });
+  const parsed = historyQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid query' });
   }
-
-  // Kiểm tra from/to là mốc thời gian hợp lệ.
-  if (Number.isNaN(Date.parse(from)) || Number.isNaN(Date.parse(to))) {
-    return res.status(400).json({ error: 'Invalid date format for "from" or "to"' });
-  }
+  const { station, from, to } = parsed.data;
 
   try {
     if (!(await stationExists(station))) {
