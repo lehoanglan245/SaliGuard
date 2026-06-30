@@ -153,6 +153,24 @@ export async function getAlerts(limit = 200): Promise<AlertRow[]> {
   return rows;
 }
 
+/**
+ * Lấy các bản ghi quan trắc trong `hours` giờ gần nhất của một trạm (ascending).
+ * Dùng để dựng đặc trưng time-series gửi sang AI Engine.
+ */
+export async function getRecentReadings(
+  stationId: string,
+  hours = 48
+): Promise<HistoryRow[]> {
+  const sql = `
+    SELECT time AS ts, ec, temp, level
+    FROM telemetry
+    WHERE station_id = $1 AND time >= NOW() - make_interval(hours => $2)
+    ORDER BY time ASC
+  `;
+  const { rows } = await pool.query<HistoryRow>(sql, [stationId, hours]);
+  return rows;
+}
+
 /** Kiểm tra một trạm có tồn tại không. */
 export async function stationExists(stationId: string): Promise<boolean> {
   const sql = `SELECT 1 FROM stations WHERE station_id = $1 LIMIT 1`;
