@@ -6,11 +6,24 @@
 	import { clsx } from '$lib/clsx';
 	import { clearSession } from '$lib/auth';
 	import logo from '$lib/assets/logo.png';
+	import { t } from '$lib/i18n.svelte';
+	import { uiState } from '$lib/ui-state.svelte';
 
 	let { children }: { children: Snippet } = $props();
 
 	const path = $derived(page.url.pathname);
 	let mobileOpen = $state(false);
+
+	// fade the sticky search pill as the page scrolls so it doesn't clash
+	// with content underneath; clear at the very top, faint once scrolled.
+	let scrollY = $state(0);
+	$effect(() => {
+		const onScroll = () => (scrollY = window.scrollY);
+		onScroll();
+		window.addEventListener('scroll', onScroll, { passive: true });
+		return () => window.removeEventListener('scroll', onScroll);
+	});
+	const searchOpacity = $derived(Math.max(0.1, 1 - scrollY / 90));
 
 	type NavIcon = 'overview' | 'stations' | 'map' | 'alerts' | 'reports';
 	type NavHref = '/' | '/stations' | '/map' | '/alerts' | '/reports';
@@ -23,16 +36,21 @@
 	};
 
 	const nav = $derived<NavItem[]>([
-		{ label: 'Overview', href: '/', icon: 'overview', active: path === '/' },
+		{ label: t('nav.overview'), href: '/', icon: 'overview', active: path === '/' },
 		{
-			label: 'Stations',
+			label: t('nav.stations'),
 			href: '/stations',
 			icon: 'stations',
 			active: path.startsWith('/stations')
 		},
-		{ label: 'Map', href: '/map', icon: 'map', active: path.startsWith('/map') },
-		{ label: 'Alerts', href: '/alerts', icon: 'alerts', active: path.startsWith('/alerts') },
-		{ label: 'Reports', href: '/reports', icon: 'reports', active: path.startsWith('/reports') }
+		{ label: t('nav.map'), href: '/map', icon: 'map', active: path.startsWith('/map') },
+		{ label: t('nav.alerts'), href: '/alerts', icon: 'alerts', active: path.startsWith('/alerts') },
+		{
+			label: t('nav.reports'),
+			href: '/reports',
+			icon: 'reports',
+			active: path.startsWith('/reports')
+		}
 	]);
 
 	const linkBase = 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition';
@@ -60,19 +78,16 @@
 		{#if name === 'overview'}
 			<path d="M3 12 12 3l9 9" /><path d="M5 10v10h14V10" />
 		{:else if name === 'stations'}
-			<rect x="3" y="3" width="7" height="7" rx="1.5" /><rect
-				x="14"
-				y="3"
-				width="7"
-				height="7"
-				rx="1.5"
-			/><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect
-				x="14"
-				y="14"
-				width="7"
-				height="7"
-				rx="1.5"
-			/>
+			<path d="M5 22L12 9l7 13" stroke-linecap="round" stroke-linejoin="round" /><line
+				x1="8"
+				y1="17"
+				x2="16"
+				y2="17"
+				stroke-linecap="round"
+			/><path d="M10 6.5a3 3 0 0 1 4 0" stroke-linecap="round" /><path
+				d="M8 4a6 6 0 0 1 8 0"
+				stroke-linecap="round"
+			/><circle cx="12" cy="9" r="1.2" fill="currentColor" stroke="none" />
 		{:else if name === 'map'}
 			<path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3Z" /><path d="M9 3v15M15 6v15" />
 		{:else if name === 'alerts'}
@@ -118,11 +133,10 @@
 		<div class="flex items-center gap-2 px-6 py-5">
 			<img
 				src={logo}
-				alt=""
-				class="h-7 w-7 shrink-0 rounded-full object-cover"
-				aria-hidden="true"
+				alt="SaliGuard"
+				class="h-[53px] w-[53px] shrink-0 rounded-full object-cover"
 			/>
-			<span class="text-[15px] font-semibold tracking-tight">SaliGuard</span>
+			<span class="text-[18px] font-semibold tracking-tight">SaliGuard</span>
 		</div>
 
 		<nav class="flex-1 px-4 py-2" aria-label="Primary">
@@ -167,8 +181,33 @@
 				</div>
 				<button
 					type="button"
+					onclick={() => {
+						uiState.settingsOpen = true;
+						mobileOpen = false;
+					}}
+					aria-label={t('nav.settings')}
+					class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-gray-400 transition hover:bg-cream/70 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-accent"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						class="h-4 w-4"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						aria-hidden="true"
+					>
+						<path
+							d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+						<circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</button>
+				<button
+					type="button"
 					onclick={logout}
-					aria-label="Sign out"
+					aria-label={t('nav.logout')}
 					class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-gray-400 transition hover:bg-cream/70 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-accent"
 				>
 					<svg
@@ -215,7 +254,8 @@
 					</svg>
 				</button>
 				<div
-					class="flex items-center gap-2 rounded-full border border-gray-200/70 bg-white/70 px-3.5 py-1.5"
+					style="--so: {searchOpacity}"
+					class="flex items-center gap-2 rounded-full border border-gray-200/70 bg-white/70 px-3.5 py-1.5 opacity-[var(--so)] backdrop-blur-sm transition-opacity duration-200 hover:opacity-100"
 				>
 					<svg
 						viewBox="0 0 24 24"
