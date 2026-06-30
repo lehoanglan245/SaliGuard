@@ -8,7 +8,9 @@
 	import { resolve } from '$app/paths';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from '$lib/motion';
-	import { getSession } from '$lib/auth';
+	import { getSession, isOnboardingDone } from '$lib/auth';
+	import SettingsOverlay from '$lib/components/settings-overlay.svelte';
+	import { uiState } from '$lib/ui-state.svelte';
 
 	let { children } = $props();
 
@@ -22,12 +24,13 @@
 		return browser ? getSession() : null;
 	});
 	const onLogin = $derived(page.url.pathname === '/login');
-	const showApp = $derived(onLogin || !!session);
+	const onOnboarding = $derived(page.url.pathname === '/onboarding');
+	const showApp = $derived(onLogin || onOnboarding || !!session);
 
 	// Redirect side effects only — no state writes here.
 	$effect(() => {
-		if (!session && !onLogin) goto(resolve('/login'));
-		else if (session && onLogin) goto(resolve('/'));
+		if (!session && !onLogin && !onOnboarding) goto(resolve('/login'));
+		else if (session && onLogin) goto(resolve(isOnboardingDone() ? '/' : '/onboarding'));
 	});
 </script>
 
@@ -39,5 +42,8 @@
 			{@render children()}
 		</div>
 	{/key}
-	{#if !onLogin}<ChatWidget />{/if}
+	{#if !onLogin && !onOnboarding}<ChatWidget />{/if}
+	{#if uiState.settingsOpen && !onLogin && !onOnboarding}
+		<SettingsOverlay />
+	{/if}
 {/if}

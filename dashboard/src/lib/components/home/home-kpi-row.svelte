@@ -2,6 +2,7 @@
 	import { clsx } from '$lib/clsx';
 	import { CARD_INTERACTIVE } from '$lib/ui';
 	import { reveal } from '$lib/actions/reveal';
+	import { t } from '$lib/i18n.svelte';
 
 	type Alert = 'green' | 'yellow' | 'red';
 	type Row = { name: string; ec: number; forecast: number; level: number; alert: Alert };
@@ -26,33 +27,33 @@
 	const kpis = $derived([
 		{
 			key: 'safe' as CardKey,
-			label: 'Safe stations',
+			label: t('kpi.safe'),
 			value: `${greenCount}`,
 			suffix: `/${total}`,
-			sub: `${safePct}% of network`,
+			sub: t('kpi.safe.sub', { pct: safePct }),
 			tone: 'text-green-600'
 		},
 		{
 			key: 'risk' as CardKey,
-			label: 'At risk',
+			label: t('kpi.risk'),
 			value: `${atRisk}`,
-			sub: 'Yellow or red',
+			sub: t('kpi.risk.sub'),
 			tone: 'text-yellow-600'
 		},
 		{
 			key: 'peak' as CardKey,
-			label: 'Peak salinity',
+			label: t('kpi.peak'),
 			value: `${peak.toFixed(1)}`,
 			unit: 'g/L',
-			sub: '24h forecast',
+			sub: t('kpi.peak.sub'),
 			tone: 'text-red-600'
 		},
 		{
 			key: 'level' as CardKey,
-			label: 'Avg water level',
+			label: t('kpi.level'),
 			value: `${avgLevel.toFixed(1)}`,
 			unit: 'm',
-			sub: 'Across network',
+			sub: t('kpi.level.sub'),
 			tone: 'text-gray-400'
 		}
 	]);
@@ -72,7 +73,11 @@
 		yellow: 'bg-yellow-50 text-yellow-700',
 		red: 'bg-red-50 text-red-700'
 	};
-	const LABEL: Record<Alert, string> = { green: 'Safe', yellow: 'Caution', red: 'Danger' };
+	const LABEL = $derived<Record<Alert, string>>({
+		green: t('alert.green'),
+		yellow: t('alert.yellow'),
+		red: t('alert.red')
+	});
 
 	const safeStations = $derived(stations.filter((s) => s.alert === 'green'));
 	const riskStations = $derived(

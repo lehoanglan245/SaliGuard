@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { reveal } from '$lib/actions/reveal';
+	import { t } from '$lib/i18n.svelte';
 
 	interface Props {
 		total: number;
@@ -13,10 +14,9 @@
 		class="mt-1 text-5xl leading-[1.05] font-semibold tracking-tight"
 		style="font-family: 'Lora', serif;"
 	>
-		Salinity overview
+		{t('home.title')}
 	</h1>
 	<p class="mt-3 max-w-xl text-[15px] leading-relaxed text-gray-500">
-		{total} field stations along the Hải Phòng estuaries. Forecasts run 24–72 hours ahead, flagged against
-		the 1 &amp; 4 g/L thresholds.
+		{t('home.sub', { total })}
 	</p>
 </div>
