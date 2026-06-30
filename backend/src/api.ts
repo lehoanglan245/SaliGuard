@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import type { Request, Response } from 'express';
 import cors from 'cors';
+import { saveUser } from './db.js';
+import type { UserProfile } from './db.js';
 
 /** Trạng thái cảnh báo dựa trên độ mặn dự báo. */
 type AlertLevel = 'green' | 'yellow' | 'red';
@@ -72,6 +74,33 @@ app.get('/api/latest', (req: Request, res: Response) => {
   };
 
   res.json(reading);
+});
+
+// POST /api/users — lưu profile người dùng từ onboarding
+app.post('/api/users', async (req: Request, res: Response) => {
+  const { email, province, district, commune, farm_type, farm_area, water_source, alert_threshold, lead_time, experience } = req.body as Partial<UserProfile>;
+
+  if (!email || !province || !district) {
+    return res.status(400).json({ error: 'Missing required fields: email, province, district' });
+  }
+
+  try {
+    await saveUser({
+      email,
+      province,
+      district,
+      ...(commune !== undefined && { commune }),
+      ...(farm_type !== undefined && { farm_type }),
+      ...(farm_area !== undefined && { farm_area }),
+      ...(water_source !== undefined && { water_source }),
+      ...(alert_threshold !== undefined && { alert_threshold }),
+      ...(lead_time !== undefined && { lead_time }),
+      ...(experience !== undefined && { experience }),
+    });
+    res.status(201).json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to save user profile' });
+  }
 });
 
 export default app;
