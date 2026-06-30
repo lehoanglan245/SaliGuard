@@ -53,3 +53,11 @@ Tham số: `--series` (số trạm tổng hợp), `--days`, `--step` (bước tr
 uvicorn app:app --port 8000              # dev
 # MODEL_PATH / MODEL_48H_PATH đổi đường dẫn model nếu cần
 ```
+
+## Test
+```bash
+python -m unittest test_ai -v
+```
+Kiểm tra: số chiều & độ chính xác của feature (lag/roll/slope), không crash khi
+lịch sử ngắn, và smoke test `predict()` trả về 2 forecast hữu hạn.
+Thủ công: `GET /health` xem `mode` (mock/model), `POST /predict` với `{history:[...]}`.
