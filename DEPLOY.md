@@ -27,7 +27,7 @@ Kiến trúc triển khai (theo CLAUDE.md):
 
 ### A.1 Chọn nhà cung cấp
 Cần ~2 GB RAM (xgboost + Postgres). Gợi ý (rẻ → ổn định):
-- **Hetzner Cloud** CX22 (2 vCPU / 4 GB, ~€4/tháng) — đáng tiền nhất.
+- **Hetzner Cloud** CX23 (2 vCPU x86 / 4 GB, ~€5.99/tháng) — đáng tiền nhất. Chọn bản Intel/AMD, không phải CAX (ARM).
 - **DigitalOcean / Vultr** droplet 2 GB (~$12/tháng).
 - **AWS Lightsail** 2 GB.
 
