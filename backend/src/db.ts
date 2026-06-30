@@ -17,6 +17,44 @@ pool.on('error', (err: Error) => {
   console.error('[DB] Unexpected pool error:', err.message);
 });
 
+/** Thông tin tĩnh của một trạm đo. */
+export interface StationRow {
+  station_id: string;
+  name: string;
+  region: string;
+  lat: number;
+  lon: number;
+}
+
+/** Một điểm dữ liệu lịch sử (cho biểu đồ). */
+export interface HistoryRow {
+  ts: string;
+  ec: number;
+  temp: number;
+  level: number;
+}
+
+/** Một bản ghi telemetry vượt ngưỡng cảnh báo (kèm thông tin trạm). */
+export interface AlertRow {
+  ts: string;
+  station_id: string;
+  station: string;
+  region: string;
+  ec: number;
+  forecast_24h: number | null;
+}
+
+/** Bản ghi số liệu mới nhất của một trạm (chưa kèm mức cảnh báo). */
+export interface LatestRow {
+  station_id: string;
+  temp: number;
+  ec: number;
+  level: number;
+  forecast_24h: number | null;
+  forecast_48h: number | null;
+  updated_at: string;
+}
+
 /**
  * Insert một bản ghi telemetry vào hypertable `telemetry`.
  *
@@ -24,20 +62,24 @@ pool.on('error', (err: Error) => {
  * @param temp - Nhiệt độ nước (°C)
  * @param ec - Độ dẫn điện / độ mặn (g/L)
  * @param level - Mực nước (m)
+ * @param forecast_24h - Dự báo độ mặn 24h từ AI Engine (có thể null nếu AI lỗi)
+ * @param forecast_48h - Dự báo độ mặn 48h từ AI Engine (có thể null nếu AI lỗi)
  */
 export async function insertTelemetry(
   station_id: string,
   temp: number,
   ec: number,
-  level: number
+  level: number,
+  forecast_24h: number | null = null,
+  forecast_48h: number | null = null
 ): Promise<void> {
   const sql = `
-    INSERT INTO telemetry (time, station_id, temp, ec, level)
-    VALUES (NOW(), $1, $2, $3, $4)
+    INSERT INTO telemetry (time, station_id, temp, ec, level, forecast_24h, forecast_48h)
+    VALUES (NOW(), $1, $2, $3, $4, $5, $6)
   `;
 
   try {
-    await pool.query(sql, [station_id, temp, ec, level]);
+    await pool.query(sql, [station_id, temp, ec, level, forecast_24h, forecast_48h]);
     console.log(`[DB] Inserted telemetry for station "${station_id}"`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

@@ -1,9 +1,9 @@
 """SaliGuard AI Engine - Dịch vụ dự báo độ mặn (XGBoost).
 
 Nhận {temp, level, ec} từ Backend qua HTTP POST và trả về dự báo
-độ mặn cho 24h tới. Nếu không tìm thấy model đã huấn luyện, dịch vụ
-tự động chuyển sang chế độ mock (sinh giá trị ngẫu nhiên) để Backend
-vẫn hoạt động trong quá trình phát triển.
+độ mặn cho 24h và 48h tới. Nếu không tìm thấy model đã huấn luyện,
+dịch vụ tự động chuyển sang chế độ mock (sinh giá trị ngẫu nhiên) để
+Backend vẫn hoạt động trong quá trình phát triển.
 """
 
 import os
@@ -14,26 +14,39 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 MODEL_PATH: str = os.getenv("MODEL_PATH", "xgboost_model.json")
+# Model riêng cho dự báo 48h. Nếu không có, 48h sẽ tái dùng model 24h
+# (xem chú thích trong predict()) — không bịa giá trị bằng nhau như trước.
+MODEL_48H_PATH: str = os.getenv("MODEL_48H_PATH", "xgboost_model_48h.json")
 
 app = FastAPI(title="SaliGuard AI Engine", version="1.0.0")
 
 # --- Nạp model XGBoost (nếu có) ---
 model = None
+model48 = None
 MOCK_MODE: bool = True
 
-try:
+
+def _load_model(path: str):
+    """Nạp một Booster XGBoost từ file; trả về None nếu không có/không nạp được."""
     import xgboost as xgb
 
-    if os.path.exists(MODEL_PATH):
-        model = xgb.Booster()
-        model.load_model(MODEL_PATH)
-        MOCK_MODE = False
-        print(f"[AI] Loaded XGBoost model from '{MODEL_PATH}'.")
-    else:
-        print(
-            f"[AI] WARNING: Model file '{MODEL_PATH}' not found. "
-            "Running in MOCK mode (random forecasts)."
-        )
+    if not os.path.exists(path):
+        print(f"[AI] WARNING: Model file '{path}' not found.")
+        return None
+    booster = xgb.Booster()
+    booster.load_model(path)
+    print(f"[AI] Loaded XGBoost model from '{path}'.")
+    return booster
+
+
+try:
+    import xgboost as xgb  # noqa: F401 - kiểm tra thư viện đã cài chưa
+
+    model = _load_model(MODEL_PATH)
+    model48 = _load_model(MODEL_48H_PATH)
+    MOCK_MODE = model is None
+    if MOCK_MODE:
+        print("[AI] Running in MOCK mode (random forecasts).")
 except ImportError:
     print(
         "[AI] WARNING: 'xgboost' is not installed. "
@@ -41,6 +54,9 @@ except ImportError:
     )
 except Exception as exc:  # noqa: BLE001 - log mọi lỗi load model rồi fallback mock
     print(f"[AI] WARNING: Failed to load model ({exc}). Running in MOCK mode.")
+    model = None
+    model48 = None
+    MOCK_MODE = True
 
 
 class PredictRequest(BaseModel):
@@ -55,6 +71,7 @@ class PredictResponse(BaseModel):
     """Kết quả dự báo trả về cho Backend."""
 
     forecast_24h: float
+    forecast_48h: float
 
 
 @app.get("/health")
@@ -65,16 +82,23 @@ def health() -> dict:
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(data: PredictRequest) -> PredictResponse:
-    """Dự báo độ mặn 24h tới từ {temp, level, ec}."""
+    """Dự báo độ mặn 24h và 48h tới từ {temp, level, ec}."""
     if MOCK_MODE or model is None:
-        forecast: float = round(random.uniform(1.0, 6.0), 2)
-        return PredictResponse(forecast_24h=forecast)
+        # Mock: 48h biến động mạnh hơn 24h, là giá trị ĐỘC LẬP (không bằng 24h).
+        forecast24: float = round(random.uniform(1.0, 6.0), 2)
+        forecast48: float = round(random.uniform(1.0, 7.0), 2)
+        return PredictResponse(forecast_24h=forecast24, forecast_48h=forecast48)
 
     # Thứ tự feature phải khớp với lúc huấn luyện: [temp, ec, level]
     import xgboost as xgb
 
     features = np.array([[data.temp, data.ec, data.level]], dtype=np.float32)
     dmatrix = xgb.DMatrix(features)
-    prediction = float(model.predict(dmatrix)[0])
+    forecast24 = round(float(model.predict(dmatrix)[0]), 2)
 
-    return PredictResponse(forecast_24h=round(prediction, 2))
+    # 48h: dùng model 48h riêng nếu có; nếu chưa train thì tái dùng model 24h
+    # (giới hạn hiện tại — cần train model 48h để có dự báo độc lập).
+    horizon_model = model48 if model48 is not None else model
+    forecast48 = round(float(horizon_model.predict(dmatrix)[0]), 2)
+
+    return PredictResponse(forecast_24h=forecast24, forecast_48h=forecast48)

@@ -50,7 +50,8 @@ export async function fetchStationDetails(fetchFn: typeof fetch): Promise<Statio
 		const res = await fetchFn(`${baseUrl()}/api/stations`, { signal: AbortSignal.timeout(2500) });
 		if (!res.ok) throw new ApiError('Failed to fetch stations', res.status);
 		return (await res.json()) as StationDetail[];
-	} catch {
+	} catch (err) {
+		console.warn('[api] /api/stations unreachable, using fallback mock data:', err);
 		return MOCK_STATION_DETAILS;
 	}
 }
@@ -62,7 +63,8 @@ export async function fetchAlertHistory(fetchFn: typeof fetch): Promise<AlertEve
 		const res = await fetchFn(`${baseUrl()}/api/alerts`, { signal: AbortSignal.timeout(2500) });
 		if (!res.ok) throw new ApiError('Failed to fetch alerts', res.status);
 		return (await res.json()) as AlertEvent[];
-	} catch {
+	} catch (err) {
+		console.warn('[api] /api/alerts unreachable, using fallback mock data:', err);
 		return mockAlertHistory();
 	}
 }
@@ -82,7 +84,8 @@ export async function fetchHistory(
 		});
 		if (!res.ok) throw new ApiError(`Failed to fetch history for ${stationId}`, res.status);
 		return (await res.json()) as HistoryPoint[];
-	} catch {
+	} catch (err) {
+		console.warn(`[api] /api/history for ${stationId} unreachable, using fallback mock:`, err);
 		return mockHistory(stationId, from, to);
 	}
 }
