@@ -30,7 +30,9 @@
 		<div class="flex items-start justify-between gap-3">
 			<div class="min-w-0">
 				<p class="truncate text-base font-semibold tracking-tight">{station.name}</p>
-				<p class="text-xs text-gray-500">{station.region}</p>
+				<p class="truncate text-xs text-gray-500">
+					<span class="font-mono text-gray-400">{station.station_id}</span> · {station.region}
+				</p>
 			</div>
 			<span class="flex shrink-0 items-center gap-1.5">
 				<span
