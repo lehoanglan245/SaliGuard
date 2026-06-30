@@ -3,29 +3,23 @@ import { readFileSync } from 'node:fs';
 import mqtt from 'mqtt';
 import type { IClientOptions } from 'mqtt';
 import app from './api.js';
-import { insertTelemetry, ensureUsersTable, getUserEmailsByProvince } from './db.js';
+import {
+  insertTelemetry,
+  getRecentReadings,
+  ensureUsersTable,
+  getUserEmailsByProvince,
+} from './db.js';
+import { telemetrySchema, forecastResponseSchema } from './schemas.js';
 import { sendAlertEmail } from './mailer.js';
-
-/** Payload JSON do ESP32 publish lên MQTT. */
-interface TelemetryPayload {
-  temp: number;
-  ec: number;
-  level: number;
-}
-
-/** Kết quả dự báo trả về từ AI Engine. */
-interface ForecastResponse {
-  forecast_24h: number;
-}
 
 const MQTT_URL = process.env.MQTT_URL ?? 'mqtt://localhost:1883';
 const AI_ENGINE_URL = process.env.AI_ENGINE_URL ?? 'http://localhost:8000/predict';
 const API_PORT = Number(process.env.API_PORT ?? 3000);
 const TELEMETRY_TOPIC = 'waterqa/+/telemetry';
-const RED_THRESHOLD = 4;    // g/L → đỏ
-const YELLOW_THRESHOLD = 1; // g/L → vàng
+const RED_THRESHOLD = 4; // g/L -> mức cảnh báo đỏ
+const YELLOW_THRESHOLD = 1; // g/L -> mức cảnh báo vàng
 
-// Province của từng trạm — mở rộng khi thêm trạm mới
+// Province của từng trạm — mở rộng khi thêm trạm mới (dùng để gửi email cảnh báo).
 const STATION_PROVINCE: Record<string, string> = {
   ST001: 'Hải Phòng',
   ST002: 'Hải Phòng',
@@ -37,6 +31,26 @@ const STATION_NAME: Record<string, string> = {
   ST002: 'Cửa sông Bạch Đằng',
   ST003: 'Cửa sông Lạch Tray',
 };
+
+/**
+ * Tùy chọn kết nối MQTT. Khi dùng `mqtts://` (TLS) thì gắn kèm chứng chỉ CA
+ * (nếu có) và thông tin đăng nhập. Mọi cấu hình đọc từ .env, không hardcode.
+ */
+function buildMqttOptions(): IClientOptions {
+  const options: IClientOptions = {};
+
+  if (process.env.MQTT_USERNAME) options.username = process.env.MQTT_USERNAME;
+  if (process.env.MQTT_PASSWORD) options.password = process.env.MQTT_PASSWORD;
+
+  if (MQTT_URL.startsWith('mqtts://')) {
+    if (process.env.MQTT_CA_CERT) {
+      options.ca = readFileSync(process.env.MQTT_CA_CERT);
+    }
+    options.rejectUnauthorized = process.env.MQTT_TLS_INSECURE !== 'true';
+  }
+
+  return options;
+}
 
 // --- 1. Khởi động REST API server + đảm bảo DB schema ---
 app.listen(API_PORT, () => {
@@ -108,48 +122,45 @@ client.on('message', async (topic: string, message: Buffer) => {
       body: JSON.stringify({ history }),
     });
 
-    if (response.ok) {
+    if (!response.ok) {
+      console.error(`[AI] Engine responded with status ${response.status}`);
+    } else {
       const result = forecastResponseSchema.safeParse(await response.json());
       if (!result.success) {
         console.error(`[AI] Invalid response shape from engine:`, result.error.issues);
       } else {
-        forecast24 = result.data.forecast_24h;
+        // const f24 cố định kiểu number (forecast24/forecast48 là number|null cho DB).
+        const f24 = result.data.forecast_24h;
+        forecast24 = f24;
         forecast48 = result.data.forecast_48h;
         console.log(
-          `[AI] ${station_id} forecast_24h = ${forecast24} g/L, forecast_48h = ${forecast48} g/L`
+          `[AI] ${station_id} forecast_24h = ${f24} g/L, forecast_48h = ${forecast48} g/L`
         );
 
-        if (forecast24 > RED_THRESHOLD) {
+        // 3a-bis. Cảnh báo: vượt ngưỡng -> gửi email cho user cùng tỉnh.
+        const alertLevel: 'yellow' | 'red' | null =
+          f24 > RED_THRESHOLD ? 'red' : f24 > YELLOW_THRESHOLD ? 'yellow' : null;
+
+        if (alertLevel) {
+          const province = STATION_PROVINCE[station_id] ?? 'Unknown';
+          const stationName = STATION_NAME[station_id] ?? station_id;
           console.warn(
-            `[ALERT] 🔴 RED ALERT for station "${station_id}": forecast ${forecast24} g/L > ${RED_THRESHOLD} g/L`
+            `[ALERT] ${alertLevel === 'red' ? '🔴' : '🟡'} ${alertLevel.toUpperCase()} for "${station_id}": ${f24} g/L`
           );
+
+          const emails = await getUserEmailsByProvince(province);
+          for (const email of emails) {
+            sendAlertEmail({
+              to: email,
+              stationName,
+              province,
+              forecast24h: f24,
+              alertLevel,
+            }).catch((err: unknown) =>
+              console.error('[MAIL] Failed to send to', email, err)
+            );
+          }
         }
-      }
-    } else {
-      console.error(`[AI] Engine responded with status ${response.status}`);
-      return;
-    }
-
-    const result = (await response.json()) as ForecastResponse;
-    const forecast = result.forecast_24h;
-
-    console.log(`[AI] ${station_id} forecast_24h = ${forecast} g/L`);
-
-    const alertLevel =
-      forecast > RED_THRESHOLD ? 'red' : forecast > YELLOW_THRESHOLD ? 'yellow' : null;
-
-    if (alertLevel) {
-      const province = STATION_PROVINCE[station_id] ?? 'Unknown';
-      const stationName = STATION_NAME[station_id] ?? station_id;
-      console.warn(
-        `[ALERT] ${alertLevel === 'red' ? '🔴' : '🟡'} ${alertLevel.toUpperCase()} for "${station_id}": ${forecast} g/L`
-      );
-
-      const emails = await getUserEmailsByProvince(province);
-      for (const email of emails) {
-        sendAlertEmail({ to: email, stationName, province, forecast24h: forecast, alertLevel }).catch(
-          (err: unknown) => console.error('[MAIL] Failed to send to', email, err),
-        );
       }
     }
   } catch (err) {
