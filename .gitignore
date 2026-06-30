@@ -16,3 +16,8 @@ build/
 __pycache__/
 .venv/
 *.pkl
+
+# Deploy secrets (production)
+infra/mosquitto/passwd
+infra/mosquitto/certs/
+ai_engine/models/

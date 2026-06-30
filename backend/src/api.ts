@@ -31,7 +31,12 @@ interface LatestReading {
 
 const app = express();
 
-app.use(cors());
+// CORS: production chỉ cho phép domain dashboard (CORS_ORIGIN, phân tách bằng dấu
+// phẩy nếu nhiều domain). Khi chưa đặt (dev) thì mở cho mọi origin.
+const corsOrigins = process.env.CORS_ORIGIN?.split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(cors(corsOrigins && corsOrigins.length > 0 ? { origin: corsOrigins } : {}));
 app.use(express.json());
 
 // GET /health - kiểm tra trạng thái service (dùng cho monitor/uptime check).
