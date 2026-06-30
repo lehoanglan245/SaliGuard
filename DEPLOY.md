@@ -28,10 +28,6 @@ Kiến trúc triển khai (theo CLAUDE.md):
 ### A.1 Chọn nhà cung cấp
 Cần ~2 GB RAM (xgboost + Postgres). Gợi ý (dễ dùng → rẻ nhất):
 - **DigitalOcean** droplet 2 GB / 2 vCPU (~$12/tháng) — dễ đăng ký & dùng nhất, hay có credit thử. Chọn region **Singapore** cho gần VN.
-- **Vultr** 2 GB (~$12/tháng) — tương tự DO, có data center Singapore/Tokyo.
-- **Hetzner Cloud** CX23 (2 vCPU x86 / 4 GB, ~€5.99/tháng) — rẻ nhất nhưng verify tài khoản khó (đòi giấy tờ). Chọn bản Intel/AMD, không phải CAX (ARM).
-- **AWS Lightsail** 2 GB.
-
 Chọn image **Ubuntu 24.04 LTS**.
 
 ### A.2 Cài Docker trên VPS

@@ -232,6 +232,26 @@ app.get('/api/alerts', async (_req: Request, res: Response) => {
   }
 });
 
+// POST /api/chat { messages } -> { reply } — chatbot Gemini
+app.post('/api/chat', async (req: Request, res: Response) => {
+  const parsed = chatBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid body' });
+  }
+
+  try {
+    const reply = await askChat(parsed.data.messages);
+    res.json({ reply });
+  } catch (err) {
+    if (err instanceof ChatUnavailableError) {
+      return res.status(503).json({ error: err.message });
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API] /api/chat failed:', message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/users — lưu profile người dùng từ onboarding
 app.post('/api/users', async (req: Request, res: Response) => {
   const { email, province, district, commune, farm_type, farm_area, water_source, alert_threshold, lead_time, experience } = req.body as Partial<UserProfile>;
