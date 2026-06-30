@@ -76,6 +76,11 @@ services:
       API_PORT: 3000
       REAL_STATION_ID: ${REAL_STATION_ID}
       CORS_ORIGIN: ${CORS_ORIGIN}
+      # Chatbot (Gemini) + email cảnh báo (Gmail SMTP).
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      CHAT_MODEL: ${CHAT_MODEL:-gemini-2.5-flash}
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
     # Không publish 3000 — Caddy reverse proxy.
 
   caddy:

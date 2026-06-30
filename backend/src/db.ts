@@ -87,6 +87,108 @@ export async function insertTelemetry(
   }
 }
 
+/** Lấy danh sách tất cả trạm đo, sắp xếp theo mã trạm. */
+export async function getStations(): Promise<StationRow[]> {
+  const sql = `
+    SELECT station_id, name, region, lat, lon
+    FROM stations
+    ORDER BY station_id
+  `;
+  const { rows } = await pool.query<StationRow>(sql);
+  return rows;
+}
+
+/**
+ * Lấy chuỗi dữ liệu lịch sử của một trạm trong khoảng [from, to], tăng dần.
+ */
+export async function getHistory(
+  stationId: string,
+  from: string,
+  to: string
+): Promise<HistoryRow[]> {
+  const sql = `
+    SELECT time AS ts, ec, temp, level
+    FROM telemetry
+    WHERE station_id = $1 AND time >= $2 AND time <= $3
+    ORDER BY time ASC
+  `;
+  const { rows } = await pool.query<HistoryRow>(sql, [stationId, from, to]);
+  return rows;
+}
+
+/**
+ * Lấy các bản ghi quan trắc trong `hours` giờ gần nhất của một trạm (ascending).
+ * Dùng để dựng đặc trưng time-series gửi sang AI Engine.
+ */
+export async function getRecentReadings(
+  stationId: string,
+  hours = 48
+): Promise<HistoryRow[]> {
+  const sql = `
+    SELECT time AS ts, ec, temp, level
+    FROM telemetry
+    WHERE station_id = $1 AND time >= NOW() - make_interval(hours => $2)
+    ORDER BY time ASC
+  `;
+  const { rows } = await pool.query<HistoryRow>(sql, [stationId, hours]);
+  return rows;
+}
+
+/**
+ * Lấy các SỰ KIỆN cảnh báo trên toàn mạng lưới, mới nhất trước.
+ * Chỉ giữ thời điểm mức cảnh báo "LEO THANG" (green→yellow, yellow→red...) thay
+ * vì trả mọi bản ghi vượt ngưỡng. Mức tính theo COALESCE(forecast_24h, ec).
+ */
+export async function getAlerts(limit = 200): Promise<AlertRow[]> {
+  const sql = `
+    WITH leveled AS (
+      SELECT t.time AS ts, t.station_id, s.name AS station, s.region,
+             t.ec, t.forecast_24h,
+             CASE
+               WHEN COALESCE(t.forecast_24h, t.ec) >= 4 THEN 2
+               WHEN COALESCE(t.forecast_24h, t.ec) >= 1 THEN 1
+               ELSE 0
+             END AS lvl
+      FROM telemetry t
+      JOIN stations s ON s.station_id = t.station_id
+    ),
+    escalations AS (
+      SELECT leveled.*,
+             LAG(lvl) OVER (PARTITION BY station_id ORDER BY ts) AS prev_lvl
+      FROM leveled
+    )
+    SELECT ts, station_id, station, region, ec, forecast_24h
+    FROM escalations
+    WHERE lvl > 0 AND lvl > COALESCE(prev_lvl, 0)
+    ORDER BY ts DESC
+    LIMIT $1
+  `;
+  const { rows } = await pool.query<AlertRow>(sql, [limit]);
+  return rows;
+}
+
+/** Kiểm tra một trạm có tồn tại không. */
+export async function stationExists(stationId: string): Promise<boolean> {
+  const sql = `SELECT 1 FROM stations WHERE station_id = $1 LIMIT 1`;
+  const { rowCount } = await pool.query(sql, [stationId]);
+  return (rowCount ?? 0) > 0;
+}
+
+/**
+ * Lấy bản ghi telemetry mới nhất của một trạm. Trả về null nếu chưa có dữ liệu.
+ */
+export async function getLatestReading(stationId: string): Promise<LatestRow | null> {
+  const sql = `
+    SELECT station_id, temp, ec, level, forecast_24h, forecast_48h, time AS updated_at
+    FROM telemetry
+    WHERE station_id = $1
+    ORDER BY time DESC
+    LIMIT 1
+  `;
+  const { rows } = await pool.query<LatestRow>(sql, [stationId]);
+  return rows[0] ?? null;
+}
+
 export interface UserProfile {
   email: string;
   province: string;

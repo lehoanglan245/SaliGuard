@@ -8,6 +8,8 @@ import {
   stationExists,
   getHistory,
   getAlerts,
+  saveUser,
+  type UserProfile,
 } from './db.js';
 import { mockLatest, mockHistory, mockAlerts, mockDetail } from './mock.js';
 import { classifyAlert, trendOf, type AlertLevel } from './alert.js';
