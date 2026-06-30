@@ -1,6 +1,15 @@
 import type { StationDetail, HistoryPoint, AlertLevel, AlertEvent } from './types';
 
-export const HAI_PHONG_REGIONS = ['Cát Hải', 'Tiên Lãng', 'Vĩnh Bảo', 'Kiến Thụy', 'Đồ Sơn'];
+// Các vùng (quận/huyện) khớp đúng với roster trạm trong backend/schema.sql.
+export const HAI_PHONG_REGIONS = [
+	'Tiên Lãng',
+	'Thủy Nguyên',
+	'Hải An',
+	'Kiến Thụy',
+	'Cát Hải',
+	'Vĩnh Bảo',
+	'Đồ Sơn'
+];
 
 function alertFor(ec: number): AlertLevel {
 	if (ec > 4) return 'red';
@@ -12,48 +21,67 @@ function minsAgo(mins: number): string {
 	return new Date(Date.now() - mins * 60_000).toISOString();
 }
 
-// Five stations, one per region, covering every alert level.
+// Fallback khi không gọi được backend. Roster (id/tên/vùng/toạ độ) khớp ĐÚNG
+// backend/schema.sql (ST001..ST008) để dashboard nhất quán dù online hay offline.
+// ST001 là trạm phần cứng thật; phủ đủ các mức cảnh báo green/yellow/red.
 export const MOCK_STATION_DETAILS: StationDetail[] = [
 	{
-		station_id: 'ST-DS01',
-		name: 'Lạch Tray',
-		region: 'Đồ Sơn',
-		lat: 20.72,
-		lon: 106.75,
-		ec: 4.6,
-		temp: 29.4,
-		level: 1.9,
-		forecast_24h: 5.0,
-		forecast_48h: 5.3,
-		alert: alertFor(4.6),
-		battery: 87,
+		station_id: 'ST001',
+		name: 'Cửa sông Văn Úc',
+		region: 'Tiên Lãng',
+		lat: 20.6712,
+		lon: 106.5483,
+		ec: 2.1,
+		temp: 28.4,
+		level: 1.5,
+		forecast_24h: 2.6,
+		forecast_48h: 2.9,
+		alert: alertFor(2.1),
+		battery: 88,
 		signal: 4,
 		trend: 'up',
-		updated_at: minsAgo(4)
+		updated_at: minsAgo(3)
 	},
 	{
-		station_id: 'ST-KT01',
-		name: 'Đa Độ',
-		region: 'Kiến Thụy',
-		lat: 20.76,
-		lon: 106.65,
-		ec: 2.3,
-		temp: 28.7,
-		level: 1.6,
-		forecast_24h: 2.8,
-		forecast_48h: 3.1,
-		alert: alertFor(2.3),
+		station_id: 'ST002',
+		name: 'Cửa sông Bạch Đằng',
+		region: 'Thủy Nguyên',
+		lat: 20.7891,
+		lon: 106.7654,
+		ec: 4.6,
+		temp: 29.3,
+		level: 1.9,
+		forecast_24h: 5.0,
+		forecast_48h: 5.2,
+		alert: alertFor(4.6),
+		battery: 73,
+		signal: 4,
+		trend: 'up',
+		updated_at: minsAgo(6)
+	},
+	{
+		station_id: 'ST003',
+		name: 'Cửa sông Lạch Tray',
+		region: 'Hải An',
+		lat: 20.8123,
+		lon: 106.6892,
+		ec: 2.9,
+		temp: 28.9,
+		level: 1.7,
+		forecast_24h: 3.3,
+		forecast_48h: 3.0,
+		alert: alertFor(2.9),
 		battery: 64,
 		signal: 3,
 		trend: 'up',
 		updated_at: minsAgo(11)
 	},
 	{
-		station_id: 'ST-CH01',
+		station_id: 'ST004',
 		name: 'Cửa Cấm',
-		region: 'Cát Hải',
-		lat: 20.83,
-		lon: 106.82,
+		region: 'Hải An',
+		lat: 20.855,
+		lon: 106.72,
 		ec: 1.4,
 		temp: 28.1,
 		level: 1.4,
@@ -66,38 +94,72 @@ export const MOCK_STATION_DETAILS: StationDetail[] = [
 		updated_at: minsAgo(18)
 	},
 	{
-		station_id: 'ST-TL01',
-		name: 'Văn Úc',
-		region: 'Tiên Lãng',
-		lat: 20.68,
-		lon: 106.55,
+		station_id: 'ST005',
+		name: 'Sông Đa Độ',
+		region: 'Kiến Thụy',
+		lat: 20.74,
+		lon: 106.62,
 		ec: 0.6,
 		temp: 27.6,
 		level: 1.2,
-		forecast_24h: 0.8,
-		forecast_48h: 0.7,
+		forecast_24h: 0.9,
+		forecast_48h: 0.8,
 		alert: alertFor(0.6),
 		battery: 41,
 		signal: 2,
 		trend: 'down',
-		updated_at: minsAgo(33)
+		updated_at: minsAgo(24)
 	},
 	{
-		station_id: 'ST-VB01',
-		name: 'Sông Hóa',
+		station_id: 'ST006',
+		name: 'Cửa Nam Triệu',
+		region: 'Cát Hải',
+		lat: 20.83,
+		lon: 106.85,
+		ec: 4.2,
+		temp: 29.6,
+		level: 2.0,
+		forecast_24h: 4.7,
+		forecast_48h: 4.9,
+		alert: alertFor(4.2),
+		battery: 80,
+		signal: 3,
+		trend: 'up',
+		updated_at: minsAgo(9)
+	},
+	{
+		station_id: 'ST007',
+		name: 'Sông Thái Bình',
 		region: 'Vĩnh Bảo',
 		lat: 20.61,
-		lon: 106.48,
+		lon: 106.45,
 		ec: 0.4,
 		temp: 27.2,
 		level: 1.1,
-		forecast_24h: 0.5,
+		forecast_24h: 0.6,
 		forecast_48h: 0.5,
 		alert: alertFor(0.4),
 		battery: 19,
 		signal: 1,
 		trend: 'down',
 		updated_at: minsAgo(52)
+	},
+	{
+		station_id: 'ST008',
+		name: 'Bến Đồ Sơn',
+		region: 'Đồ Sơn',
+		lat: 20.71,
+		lon: 106.78,
+		ec: 3.1,
+		temp: 28.7,
+		level: 1.6,
+		forecast_24h: 3.5,
+		forecast_48h: 3.8,
+		alert: alertFor(3.1),
+		battery: 57,
+		signal: 3,
+		trend: 'up',
+		updated_at: minsAgo(15)
 	}
 ];
 
