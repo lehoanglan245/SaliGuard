@@ -34,12 +34,22 @@ interface LatestReading {
 
 const app = express();
 
-// CORS: production chỉ cho phép domain dashboard (CORS_ORIGIN, phân tách bằng dấu
-// phẩy nếu nhiều domain). Khi chưa đặt (dev) thì mở cho mọi origin.
-const corsOrigins = process.env.CORS_ORIGIN?.split(',')
+// CORS: chỉ cho phép domain Dashboard đã được duyệt (KHÔNG mở cho mọi origin).
+// Domain mặc định của Dashboard luôn được phép; thêm domain khác (vd. staging,
+// custom domain) qua biến môi trường CORS_ORIGIN, phân tách bằng dấu phẩy.
+const DEFAULT_CORS_ORIGINS = ['https://saliguard.pages.dev', 'https://saliguard.com'];
+const extraCorsOrigins = process.env.CORS_ORIGIN?.split(',')
   .map((o) => o.trim())
-  .filter(Boolean);
-app.use(cors(corsOrigins && corsOrigins.length > 0 ? { origin: corsOrigins } : {}));
+  .filter(Boolean) ?? [];
+const corsOrigins = [...new Set([...DEFAULT_CORS_ORIGINS, ...extraCorsOrigins])];
+
+app.use(
+  cors({
+    origin: corsOrigins,
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type'],
+  })
+);
 app.use(express.json());
 
 // GET /health - kiểm tra trạng thái service (dùng cho monitor/uptime check).
