@@ -37,3 +37,8 @@ export const historyQuerySchema = z.strictObject({
   from: dateString,
   to: dateString,
 });
+
+/** Body của POST /api/chat (tin nhắn người dùng gửi cho chatbot). */
+export const chatBodySchema = z.strictObject({
+  message: z.string().min(1, 'Message không được rỗng').max(2000),
+});
