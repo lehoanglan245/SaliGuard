@@ -86,13 +86,26 @@ client.on('message', async (topic: string, message: Buffer) => {
   console.log(`[MQTT] ${station_id} =>`, parsed.data);
 
   // 3a. Gọi AI Engine để lấy dự báo (trước, để lưu kèm vào DB).
+  // Dựng chuỗi lịch sử 48h gần nhất + bản đo hiện tại (chưa lưu DB) để AI Engine
+  // tính đặc trưng time-series (lag, thống kê trượt, pha thuỷ triều).
   let forecast24: number | null = null;
   let forecast48: number | null = null;
   try {
+    const recent = await getRecentReadings(station_id, 48);
+    const history = [
+      ...recent.map((r) => ({
+        ts: new Date(r.ts).toISOString(),
+        temp: r.temp,
+        ec: r.ec,
+        level: r.level,
+      })),
+      { ts: new Date().toISOString(), temp, ec, level },
+    ];
+
     const response = await fetch(AI_ENGINE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ temp, ec, level }),
+      body: JSON.stringify({ history }),
     });
 
     if (response.ok) {

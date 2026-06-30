@@ -11,7 +11,8 @@ import {
 } from './db.js';
 import { mockLatest, mockHistory, mockAlerts, mockDetail } from './mock.js';
 import { classifyAlert, trendOf, type AlertLevel } from './alert.js';
-import { stationQuerySchema, historyQuerySchema } from './schemas.js';
+import { stationQuerySchema, historyQuerySchema, chatBodySchema } from './schemas.js';
+import { askChat, ChatUnavailableError } from './chat.js';
 
 /**
  * Mã trạm DUY NHẤT gắn phần cứng thật (ESP32). Trạm này lấy dữ liệu từ DB;

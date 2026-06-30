@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { sendChatMessage, ApiError, type ChatTurn } from '$lib/api';
+	import { renderMarkdown } from '$lib/markdown';
+
 	type ChatMessage = { id: number; role: 'user' | 'bot'; text: string };
 
 	const WELCOME: ChatMessage = {
 		id: 0,
 		role: 'bot',
-		text: 'Xin chào! Tôi là trợ lý SaliGuard. Hỏi tôi về độ mặn, cảnh báo hay trạm đo.'
+		text: 'Xin chào! Tôi là trợ lý SaliGuard.'
 	};
 
 	let open = $state(false);
@@ -13,8 +16,9 @@
 	let nextId = $state(1);
 	let inputEl = $state<HTMLInputElement | null>(null);
 	let listEl = $state<HTMLDivElement | null>(null);
+	let sending = $state(false);
 
-	const canSend = $derived(draft.trim().length > 0);
+	const canSend = $derived(draft.trim().length > 0 && !sending);
 
 	function toggle() {
 		open = !open;
@@ -25,21 +29,32 @@
 		queueMicrotask(() => listEl?.scrollTo({ top: listEl.scrollHeight }));
 	}
 
-	function send() {
+	async function send() {
 		const text = draft.trim();
-		if (!text) return;
+		if (!text || sending) return;
 
 		messages = [...messages, { id: nextId++, role: 'user', text }];
 		draft = '';
+		sending = true;
 		scrollToEnd();
 
-		// TODO: replace with sendChatMessage() from $lib/api once the backend
-		// /api/chat endpoint is live. Echo a placeholder for now.
-		messages = [
-			...messages,
-			{ id: nextId++, role: 'bot', text: 'Chatbot chưa kết nối API — sẽ trả lời sau.' }
-		];
-		scrollToEnd();
+		try {
+			const turns: ChatTurn[] = messages
+				.filter((m) => m.id !== 0)
+				.map((m) => ({ role: m.role === 'user' ? 'user' : 'model', text: m.text }));
+			while (turns.length > 0 && turns[0]?.role !== 'user') turns.shift();
+			const { reply } = await sendChatMessage(fetch, turns.slice(-40));
+			messages = [...messages, { id: nextId++, role: 'bot', text: reply }];
+		} catch (err) {
+			const errText =
+				err instanceof ApiError && err.status === 503
+					? 'Chatbot chưa được cấu hình. Vui lòng thử lại sau.'
+					: 'Xin lỗi, hiện chưa trả lời được. Vui lòng thử lại.';
+			messages = [...messages, { id: nextId++, role: 'bot', text: errText }];
+		} finally {
+			sending = false;
+			scrollToEnd();
+		}
 	}
 
 	function onKeydown(event: KeyboardEvent) {
@@ -90,15 +105,32 @@
 			>
 				{#each messages as message (message.id)}
 					<div class={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-						<p
-							class={message.role === 'user'
-								? 'max-w-[80%] rounded-2xl rounded-br-sm bg-accent px-3 py-2 text-sm text-white'
-								: 'max-w-[80%] rounded-2xl rounded-bl-sm bg-cream px-3 py-2 text-sm text-gray-700'}
-						>
-							{message.text}
-						</p>
+						{#if message.role === 'user'}
+							<p
+								class="max-w-[80%] rounded-2xl rounded-br-sm bg-accent px-3 py-2 text-sm whitespace-pre-wrap text-white"
+							>
+								{message.text}
+							</p>
+						{:else}
+							<div
+								class="max-w-[80%] rounded-2xl rounded-bl-sm bg-cream px-3 py-2 text-sm leading-relaxed text-gray-700"
+							>
+								<!-- renderMarkdown escapes HTML first, output is XSS-safe -->
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+								{@html renderMarkdown(message.text)}
+							</div>
+						{/if}
 					</div>
 				{/each}
+				{#if sending}
+					<div class="flex justify-start">
+						<p
+							class="max-w-[80%] rounded-2xl rounded-bl-sm bg-cream px-3 py-2 text-sm text-gray-500"
+						>
+							Đang trả lời…
+						</p>
+					</div>
+				{/if}
 			</div>
 
 			<form

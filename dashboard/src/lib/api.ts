@@ -30,14 +30,18 @@ export async function getLatest(fetchFn: typeof fetch, stationId: string): Promi
 }
 
 export type ChatReply = { reply: string };
+export type ChatTurn = { role: 'user' | 'model'; text: string };
 
-// TODO: wire to the backend chatbot endpoint once it exists.
-// Expected contract: POST /api/chat { message } -> { reply }.
-export async function sendChatMessage(fetchFn: typeof fetch, message: string): Promise<ChatReply> {
+// POST /api/chat { messages } -> { reply }. Sends the whole conversation so the
+// assistant remembers context across turns.
+export async function sendChatMessage(
+	fetchFn: typeof fetch,
+	messages: ChatTurn[]
+): Promise<ChatReply> {
 	const res = await fetchFn(`${baseUrl()}/api/chat`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ message })
+		body: JSON.stringify({ messages })
 	});
 	if (!res.ok) throw new ApiError('Failed to send chat message', res.status);
 	return res.json();

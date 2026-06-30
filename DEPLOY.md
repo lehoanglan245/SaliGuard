@@ -26,9 +26,10 @@ Kiến trúc triển khai (theo CLAUDE.md):
 ## A. Chuẩn bị VPS
 
 ### A.1 Chọn nhà cung cấp
-Cần ~2 GB RAM (xgboost + Postgres). Gợi ý (rẻ → ổn định):
-- **Hetzner Cloud** CX22 (2 vCPU / 4 GB, ~€4/tháng) — đáng tiền nhất.
-- **DigitalOcean / Vultr** droplet 2 GB (~$12/tháng).
+Cần ~2 GB RAM (xgboost + Postgres). Gợi ý (dễ dùng → rẻ nhất):
+- **DigitalOcean** droplet 2 GB / 2 vCPU (~$12/tháng) — dễ đăng ký & dùng nhất, hay có credit thử. Chọn region **Singapore** cho gần VN.
+- **Vultr** 2 GB (~$12/tháng) — tương tự DO, có data center Singapore/Tokyo.
+- **Hetzner Cloud** CX23 (2 vCPU x86 / 4 GB, ~€5.99/tháng) — rẻ nhất nhưng verify tài khoản khó (đòi giấy tờ). Chọn bản Intel/AMD, không phải CAX (ARM).
 - **AWS Lightsail** 2 GB.
 
 Chọn image **Ubuntu 24.04 LTS**.
@@ -85,13 +86,18 @@ docker run --rm -v "$PWD/infra/mosquitto:/m" eclipse-mosquitto:2 \
 ```
 (`esp32` là username; thêm user khác: bỏ cờ `-c`.)
 
-### B.5 (Tùy chọn) Model AI thật
-Đặt file model vào `ai_engine/models/`:
+### B.5 Model AI
+Sinh model (compose mount `./ai_engine/models` vào container):
+```bash
+cd ai_engine
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+python train.py --out models      # tạo models/xgboost_model.json + _48h.json
+cd ..
 ```
-ai_engine/models/xgboost_model.json        # model 24h
-ai_engine/models/xgboost_model_48h.json    # model 48h (nếu có)
-```
-Không có file → AI Engine chạy **mock mode** (dự báo ngẫu nhiên), hệ thống vẫn hoạt động.
+Hoặc train ở máy khác rồi copy 2 file vào `ai_engine/models/`. Không có file →
+AI Engine chạy **mock mode** (dự báo ngẫu nhiên), hệ thống vẫn hoạt động.
+Chi tiết: xem [ai_engine/README.md](ai_engine/README.md).
 
 ### B.6 Khởi động
 ```bash

@@ -37,3 +37,16 @@ export const historyQuerySchema = z.strictObject({
   from: dateString,
   to: dateString,
 });
+
+/** Một lượt hội thoại (user hỏi / model trả lời). */
+export const chatTurnSchema = z.strictObject({
+  role: z.enum(['user', 'model']),
+  text: z.string().min(1).max(4000),
+});
+
+/** Body của POST /api/chat: cả mạch hội thoại (để chatbot nhớ ngữ cảnh). */
+export const chatBodySchema = z.strictObject({
+  messages: z.array(chatTurnSchema).min(1, 'Cần ít nhất 1 tin nhắn').max(40),
+});
+
+export type ChatTurn = z.infer<typeof chatTurnSchema>;
