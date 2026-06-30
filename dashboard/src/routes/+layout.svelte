@@ -1,6 +1,6 @@
 <script lang="ts">
 	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
+	import favicon from '$lib/assets/logo.png';
 	import ChatWidget from '$lib/components/chat-widget.svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
