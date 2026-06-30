@@ -87,93 +87,89 @@ export async function insertTelemetry(
   }
 }
 
-/** Lấy danh sách tất cả trạm đo, sắp xếp theo mã trạm. */
-export async function getStations(): Promise<StationRow[]> {
-  const sql = `
-    SELECT station_id, name, region, lat, lon
-    FROM stations
-    ORDER BY station_id
-  `;
-  const { rows } = await pool.query<StationRow>(sql);
-  return rows;
+export interface UserProfile {
+  email: string;
+  province: string;
+  district: string;
+  commune?: string;
+  farm_type?: string;
+  farm_area?: string;
+  water_source?: string;
+  alert_threshold?: string;
+  lead_time?: string;
+  experience?: string;
 }
 
-/**
- * Lấy chuỗi dữ liệu lịch sử của một trạm trong khoảng [from, to].
- * Sắp xếp tăng dần theo thời gian để vẽ biểu đồ.
- */
-export async function getHistory(
-  stationId: string,
-  from: string,
-  to: string
-): Promise<HistoryRow[]> {
+/** Tạo bảng users nếu chưa tồn tại. Gọi khi khởi động server. */
+export async function ensureUsersTable(): Promise<void> {
   const sql = `
-    SELECT time AS ts, ec, temp, level
-    FROM telemetry
-    WHERE station_id = $1 AND time >= $2 AND time <= $3
-    ORDER BY time ASC
-  `;
-  const { rows } = await pool.query<HistoryRow>(sql, [stationId, from, to]);
-  return rows;
-}
-
-/**
- * Lấy các SỰ KIỆN cảnh báo trên toàn mạng lưới, mới nhất trước.
- *
- * Chỉ giữ thời điểm mức cảnh báo "LEO THANG" (green→yellow, yellow→red...) thay
- * vì trả mọi bản ghi vượt ngưỡng — tránh trùng lặp dày đặc khi trạm đo liên tục.
- * Mức tính theo COALESCE(forecast_24h, ec): >=4 = đỏ (2), >=1 = vàng (1).
- * Dùng LAG để so mức của lần đo liền trước trong cùng một trạm.
- */
-export async function getAlerts(limit = 200): Promise<AlertRow[]> {
-  const sql = `
-    WITH leveled AS (
-      SELECT t.time AS ts, t.station_id, s.name AS station, s.region,
-             t.ec, t.forecast_24h,
-             CASE
-               WHEN COALESCE(t.forecast_24h, t.ec) >= 4 THEN 2
-               WHEN COALESCE(t.forecast_24h, t.ec) >= 1 THEN 1
-               ELSE 0
-             END AS lvl
-      FROM telemetry t
-      JOIN stations s ON s.station_id = t.station_id
-    ),
-    escalations AS (
-      SELECT leveled.*,
-             LAG(lvl) OVER (PARTITION BY station_id ORDER BY ts) AS prev_lvl
-      FROM leveled
+    CREATE TABLE IF NOT EXISTS users (
+      id          SERIAL PRIMARY KEY,
+      email       TEXT NOT NULL UNIQUE,
+      province    TEXT NOT NULL,
+      district    TEXT NOT NULL,
+      commune     TEXT,
+      farm_type   TEXT,
+      farm_area   TEXT,
+      water_source TEXT,
+      alert_threshold TEXT,
+      lead_time   TEXT,
+      experience  TEXT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-    SELECT ts, station_id, station, region, ec, forecast_24h
-    FROM escalations
-    WHERE lvl > 0 AND lvl > COALESCE(prev_lvl, 0)
-    ORDER BY ts DESC
-    LIMIT $1
   `;
-  const { rows } = await pool.query<AlertRow>(sql, [limit]);
-  return rows;
+  try {
+    await pool.query(sql);
+    console.log('[DB] users table ready');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[DB] Failed to ensure users table:', message);
+  }
 }
 
-/** Kiểm tra một trạm có tồn tại không. */
-export async function stationExists(stationId: string): Promise<boolean> {
-  const sql = `SELECT 1 FROM stations WHERE station_id = $1 LIMIT 1`;
-  const { rowCount } = await pool.query(sql, [stationId]);
-  return (rowCount ?? 0) > 0;
-}
-
-/**
- * Lấy bản ghi telemetry mới nhất của một trạm.
- * Trả về null nếu trạm chưa có dữ liệu nào.
- */
-export async function getLatestReading(stationId: string): Promise<LatestRow | null> {
+/** Upsert user profile (update nếu email đã tồn tại). */
+export async function saveUser(user: UserProfile): Promise<void> {
   const sql = `
-    SELECT station_id, temp, ec, level, forecast_24h, forecast_48h, time AS updated_at
-    FROM telemetry
-    WHERE station_id = $1
-    ORDER BY time DESC
-    LIMIT 1
+    INSERT INTO users (email, province, district, commune, farm_type, farm_area, water_source, alert_threshold, lead_time, experience)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    ON CONFLICT (email) DO UPDATE SET
+      province = EXCLUDED.province,
+      district = EXCLUDED.district,
+      commune = EXCLUDED.commune,
+      farm_type = EXCLUDED.farm_type,
+      farm_area = EXCLUDED.farm_area,
+      water_source = EXCLUDED.water_source,
+      alert_threshold = EXCLUDED.alert_threshold,
+      lead_time = EXCLUDED.lead_time,
+      experience = EXCLUDED.experience
   `;
-  const { rows } = await pool.query<LatestRow>(sql, [stationId]);
-  return rows[0] ?? null;
+  try {
+    await pool.query(sql, [
+      user.email, user.province, user.district, user.commune ?? null,
+      user.farm_type ?? null, user.farm_area ?? null, user.water_source ?? null,
+      user.alert_threshold ?? null, user.lead_time ?? null, user.experience ?? null,
+    ]);
+    console.log(`[DB] Saved user profile for ${user.email}`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[DB] Failed to save user:', message);
+    throw err;
+  }
+}
+
+/** Lấy danh sách email user đang ở province bị ảnh hưởng. */
+export async function getUserEmailsByProvince(province: string): Promise<string[]> {
+  try {
+    const result = await pool.query<{ email: string }>(
+      'SELECT email FROM users WHERE province = $1',
+      [province],
+    );
+    return result.rows.map((r) => r.email);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[DB] Failed to query users by province:', message);
+    return [];
+  }
 }
 
 export default pool;

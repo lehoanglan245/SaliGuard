@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { clsx } from '$lib/clsx';
-	import { login, loginAsGuest } from '$lib/auth';
+	import { login, loginAsGuest, isOnboardingDone } from '$lib/auth';
 	import { loginSchema } from '$lib/schema';
 	import { loginForm } from './login.remote';
 	import LoginHero from '$lib/components/login-hero.svelte';
@@ -43,7 +43,7 @@
 
 	function guest() {
 		loginAsGuest();
-		goto(resolve('/'));
+		goto(resolve(isOnboardingDone() ? '/' : '/onboarding'));
 	}
 </script>
 
@@ -93,7 +93,7 @@
 						const result = await login({ email, phone, password });
 						submitting = false;
 						if (result.ok) {
-							await goto(resolve('/'));
+							await goto(resolve(isOnboardingDone() ? '/' : '/onboarding'));
 						} else {
 							authError = result.error ?? 'Sign-in failed';
 						}
