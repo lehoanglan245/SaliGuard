@@ -20,4 +20,7 @@ __pycache__/
 # Deploy secrets (production)
 infra/mosquitto/passwd
 infra/mosquitto/certs/
+
+# AI model artifacts (sinh lại bằng: python ai_engine/train.py)
 ai_engine/models/
+ai_engine/xgboost_model*.json

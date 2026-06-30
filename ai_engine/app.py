@@ -1,17 +1,20 @@
 """SaliGuard AI Engine - Dịch vụ dự báo độ mặn (XGBoost).
 
-Nhận {temp, level, ec} từ Backend qua HTTP POST và trả về dự báo
-độ mặn cho 24h và 48h tới. Nếu không tìm thấy model đã huấn luyện,
-dịch vụ tự động chuyển sang chế độ mock (sinh giá trị ngẫu nhiên) để
-Backend vẫn hoạt động trong quá trình phát triển.
+Nhận CHUỖI quan trắc gần đây {ts, temp, ec, level} từ Backend qua HTTP POST,
+dựng đặc trưng time-series (lag, thống kê trượt, pha thuỷ triều) và trả về dự
+báo độ mặn cho 24h và 48h tới. Nếu không tìm thấy model đã huấn luyện, dịch vụ
+tự động chuyển sang chế độ mock (giá trị ngẫu nhiên) để Backend vẫn hoạt động.
 """
 
 import os
 import random
+from datetime import datetime, timezone
 
 import numpy as np
 from fastapi import FastAPI
 from pydantic import BaseModel
+
+from features import FEATURE_NAMES, build_features
 
 MODEL_PATH: str = os.getenv("MODEL_PATH", "xgboost_model.json")
 # Model riêng cho dự báo 48h. Nếu không có, 48h sẽ tái dùng model 24h
@@ -59,12 +62,19 @@ except Exception as exc:  # noqa: BLE001 - log mọi lỗi load model rồi fall
     MOCK_MODE = True
 
 
-class PredictRequest(BaseModel):
-    """Payload đầu vào cho endpoint /predict."""
+class Reading(BaseModel):
+    """Một điểm quan trắc trong chuỗi lịch sử."""
 
+    ts: str  # ISO timestamp
     temp: float
-    level: float
     ec: float
+    level: float
+
+
+class PredictRequest(BaseModel):
+    """Payload đầu vào: chuỗi quan trắc gần đây (ascending, cuối = hiện tại)."""
+
+    history: list[Reading]
 
 
 class PredictResponse(BaseModel):
@@ -72,6 +82,11 @@ class PredictResponse(BaseModel):
 
     forecast_24h: float
     forecast_48h: float
+
+
+def _to_epoch(ts: str) -> float:
+    """ISO timestamp -> epoch giây (chấp nhận hậu tố 'Z')."""
+    return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(timezone.utc).timestamp()
 
 
 @app.get("/health")
@@ -82,22 +97,27 @@ def health() -> dict:
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(data: PredictRequest) -> PredictResponse:
-    """Dự báo độ mặn 24h và 48h tới từ {temp, level, ec}."""
-    if MOCK_MODE or model is None:
+    """Dự báo độ mặn 24h và 48h tới từ chuỗi quan trắc gần đây."""
+    if MOCK_MODE or model is None or not data.history:
         # Mock: 48h biến động mạnh hơn 24h, là giá trị ĐỘC LẬP (không bằng 24h).
         forecast24: float = round(random.uniform(1.0, 6.0), 2)
         forecast48: float = round(random.uniform(1.0, 7.0), 2)
         return PredictResponse(forecast_24h=forecast24, forecast_48h=forecast48)
 
-    # Thứ tự feature phải khớp với lúc huấn luyện: [temp, ec, level]
     import xgboost as xgb
 
-    features = np.array([[data.temp, data.ec, data.level]], dtype=np.float32)
-    dmatrix = xgb.DMatrix(features)
-    forecast24 = round(float(model.predict(dmatrix)[0]), 2)
+    # Sắp xếp tăng dần theo thời gian (đề phòng backend gửi lệch thứ tự).
+    rows = sorted(data.history, key=lambda r: _to_epoch(r.ts))
+    ts = np.array([_to_epoch(r.ts) for r in rows], dtype=float)
+    ec = np.array([r.ec for r in rows], dtype=float)
+    temp = np.array([r.temp for r in rows], dtype=float)
+    level = np.array([r.level for r in rows], dtype=float)
 
-    # 48h: dùng model 48h riêng nếu có; nếu chưa train thì tái dùng model 24h
-    # (giới hạn hiện tại — cần train model 48h để có dự báo độc lập).
+    features = build_features(ts, ec, temp, level).reshape(1, -1)
+    dmatrix = xgb.DMatrix(features, feature_names=FEATURE_NAMES)
+
+    forecast24 = round(float(model.predict(dmatrix)[0]), 2)
+    # 48h: dùng model 48h riêng nếu có; nếu chưa train thì tái dùng model 24h.
     horizon_model = model48 if model48 is not None else model
     forecast48 = round(float(horizon_model.predict(dmatrix)[0]), 2)
 
